@@ -1,0 +1,34 @@
+const express = require("express");
+const cors = require("cors");
+const morgan = require("morgan");
+const authRoutes = require("./src/modules/auth/routes");
+const transactionRoutes = require("./src/modules/transaction/routes");
+const dashboardRoutes = require("./src/modules/dashboard/routes");
+const calendarRoutes = require("./src/modules/calendar/routes");
+const analyticsRoutes = require("./src/modules/analytics/routes");
+const uploadRoutes = require("./src/modules/upload/routes");
+const aiRoutes = require("./src/modules/ai/routes");
+
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
+app.use("/api/auth", authRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/ai", aiRoutes);
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "AI Expense Tracker API Running",
+  });
+});
+
+
+module.exports = app;
