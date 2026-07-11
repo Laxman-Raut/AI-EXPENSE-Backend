@@ -4,7 +4,7 @@ const VOICE_PROMPT = require("./prompt");
 const parseVoiceTransaction = async (text) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: [
         {
           role: "user",
@@ -29,10 +29,18 @@ User Speech:
       .trim();
 
     return JSON.parse(result);
+
   } catch (error) {
+    console.error("===== GEMINI ERROR =====");
+    console.error(error);
+
+    if (error.message) {
+      console.error("Message:", error.message);
+    }
+
     throw error;
   }
-};
+}; // <-- This was missing
 
 module.exports = {
   parseVoiceTransaction,

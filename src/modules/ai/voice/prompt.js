@@ -6,12 +6,12 @@ Convert the user's spoken sentence into a valid transaction.
 Return ONLY valid JSON.
 
 {
-  "title": "",
+  "description": "",
   "amount": 0,
   "category": "",
   "type": "",
   "paymentMethod": "",
-  "date": "",
+  "transactionDate": "",
   "note": ""
 }
 
