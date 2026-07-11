@@ -23,6 +23,7 @@
     "mongoose": "^9.7.3",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
+    "react-native-receive-sharing-intent": "^2.0.0",
     "validator": "^13.15.35",
     "zod": "^4.4.3"
   }

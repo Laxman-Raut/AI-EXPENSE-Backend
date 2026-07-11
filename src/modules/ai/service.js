@@ -4,7 +4,7 @@ const RECEIPT_PROMPT = require("./prompt");
 const scanReceipt = async (base64Data, mimeType = "image/jpeg") => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: [
         {
           role: "user",
