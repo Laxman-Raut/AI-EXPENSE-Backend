@@ -40,6 +40,17 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // Forgot Password
+    resetOtp: {
+      type: String,
+      default: null,
+    },
+
+    resetOtpExpiry: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

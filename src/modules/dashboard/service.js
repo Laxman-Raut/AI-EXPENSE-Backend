@@ -3,8 +3,16 @@ const Transaction = require("../transaction/model");
 const User = require("../auth/model");
 // Dashboard Summary
 const getDashboardSummary = async (userId) => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
   const transactions = await Transaction.find({
     user: userId,
+    $or: [
+      { transactionDate: { $gte: startOfMonth, $lte: endOfMonth } },
+      { transactionDate: { $exists: false }, createdAt: { $gte: startOfMonth, $lte: endOfMonth } },
+    ],
   });
 
   let totalIncome = 0;

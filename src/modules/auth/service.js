@@ -1,10 +1,11 @@
 const User = require("./model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { sendOtpEmail } = require("./mailService");
+const generateOTP = require("./otp");
 
-// =======================
 // Register User
-// =======================
+
 const registerUser = async (userData) => {
   const { fullName, email, password } = userData;
 
@@ -32,9 +33,9 @@ const registerUser = async (userData) => {
   return userObject;
 };
 
-// =======================
+
 // Login User
-// =======================
+
 const loginUser = async ({ email, password }) => {
   // Find user
   const user = await User.findOne({ email });
@@ -73,9 +74,9 @@ const loginUser = async ({ email, password }) => {
   };
 };
 
-// =======================
+
 // Get Profile
-// =======================
+
 const getProfile = async (userId) => {
   const user = await User.findById(userId).select("-password");
 
@@ -86,9 +87,9 @@ const getProfile = async (userId) => {
   return user;
 };
 
-// =======================
+
 // Update Profile
-// =======================
+
 const updateProfile = async (userId, updateData) => {
   const allowedUpdates = {};
   if (updateData.fullName !== undefined) allowedUpdates.fullName = updateData.fullName;
@@ -111,9 +112,80 @@ const updateProfile = async (userId, updateData) => {
   return user;
 };
 
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const otp = generateOTP();
+
+  user.resetOtp = otp;
+  user.resetOtpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+
+  await user.save();
+
+  await sendOtpEmail(email, otp);
+
+  return {
+    message: "OTP sent successfully",
+  };
+};
+
+const verifyOtp = async (email, otp) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (!user.resetOtp || user.resetOtp !== otp) {
+    throw new Error("Invalid OTP");
+  }
+
+  if (user.resetOtpExpiry < new Date()) {
+    throw new Error("OTP has expired");
+  }
+
+  return {
+    message: "OTP verified successfully",
+  };
+};
+
+const resetPassword = async (email, otp, newPassword) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (!user.resetOtp || user.resetOtp !== otp) {
+    throw new Error("Invalid OTP");
+  }
+
+  if (user.resetOtpExpiry < new Date()) {
+    throw new Error("OTP has expired");
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedPassword;
+  user.resetOtp = undefined;
+  user.resetOtpExpiry = undefined;
+
+  await user.save();
+
+  return {
+    message: "Password reset successfully",
+  };
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getProfile,
   updateProfile,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
 };

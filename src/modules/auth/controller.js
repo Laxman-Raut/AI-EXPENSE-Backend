@@ -1,7 +1,12 @@
-const { registerUser
-     ,loginUser,
-      getProfile,
-      updateProfile} = require("./service");
+const { 
+  registerUser,
+  loginUser,
+  getProfile,
+  updateProfile,
+  forgotPassword: forgotPasswordService,
+  verifyOtp: verifyOtpService,
+  resetPassword: resetPasswordService,
+} = require("./service");
 
 const register = async (req, res) => {
   try {
@@ -72,9 +77,66 @@ const update = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const result = await forgotPasswordService(email);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const result = await verifyOtpService(email, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    const result = await resetPasswordService(email, otp, newPassword);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   profile,
   update,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
 };
