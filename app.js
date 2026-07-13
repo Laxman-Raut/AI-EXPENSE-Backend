@@ -9,6 +9,7 @@ const analyticsRoutes = require("./src/modules/analytics/routes");
 const uploadRoutes = require("./src/modules/upload/routes");
 const aiRoutes = require("./src/modules/ai/routes");
 const voiceRoutes = require("./src/modules/ai/voice/routes");
+const exportRoutes = require("./src/modules/export/routes");
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/voice", voiceRoutes);
+app.use("/api/export", exportRoutes);
 app.get("/", (req, res) => {
   res.json({
     success: true,
