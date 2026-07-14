@@ -12,7 +12,7 @@ const aiRoutes = require("./src/modules/ai/routes");
 const voiceRoutes = require("./src/modules/ai/voice/routes");
 const exportRoutes = require("./src/modules/export/routes");
 const notificationRoutes = require("./src/modules/notification/routes");
-
+const chatbotRoutes = require("./src/modules/chatbot/routes");
 const app = express();
 
 // Middleware
@@ -39,6 +39,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/voice", voiceRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 // Health Check
 app.get("/", (req, res) => {
