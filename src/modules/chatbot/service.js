@@ -4,6 +4,13 @@ const ChatMessage = require("./model");
 const CHATBOT_PROMPT = require("./prompt");
 
 const sendMessage = async (userId, message) => {
+  // Get recent chat history (before saving new message to avoid duplicating it)
+  const history = await ChatMessage.find({
+    user: userId,
+  })
+    .sort({ createdAt: -1 })
+    .limit(20);
+
   // Save user's message
   await ChatMessage.create({
     user: userId,
@@ -11,22 +18,15 @@ const sendMessage = async (userId, message) => {
     message,
   });
 
-  // Get recent chat history
-  const history = await ChatMessage.find({
-    
-    user: userId,
-  })
-    .sort({ createdAt: -1 })
-    .limit(20);
-    const finance = await buildFinanceContext(userId);
-const financeData = `
+  const finance = await buildFinanceContext(userId);
+  const financeData = `
 USER
 
-Name: ${finance.user.fullName}
+Name: ${finance.user?.fullName || "User"}
 
-Currency: ${finance.user.currency}
+Currency: ${finance.user?.currency || "INR"}
 
-Monthly Budget: ₹${finance.user.monthlyBudget}
+Monthly Budget: ₹${finance.user?.monthlyBudget || 0}
 
 Income: ₹${finance.income}
 
@@ -43,32 +43,33 @@ ${finance.transactions
   )
   .join("\n")}
 `;
-  // Reverse to oldest → newest
+
+  // Reverse history to chronological order (oldest → newest)
   history.reverse();
 
   // Build conversation
   let conversation = "";
-
   history.forEach(chat => {
     conversation += `${chat.role}: ${chat.message}\n`;
   });
 
-  // Build prompt
+  // Build prompt incorporating the financial context
   const prompt = `
 ${CHATBOT_PROMPT}
 
-Previous Conversation:
+User's Current Financial Data:
+${financeData}
 
+Previous Conversation:
 ${conversation}
 
 Current User Message:
-
 ${message}
 `;
 
-  // Ask Gemini
+  // Ask Gemini using working model gemini-3.1-flash-lite
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
     contents: prompt,
   });
 

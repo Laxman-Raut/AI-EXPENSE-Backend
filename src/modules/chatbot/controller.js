@@ -13,7 +13,7 @@ const sendMessage = async (req, res) => {
     }
 
     const reply = await chatbotService.sendMessage(
-      req.user.id,
+      req.user.userId,
       message
     );
 
@@ -34,7 +34,7 @@ const sendMessage = async (req, res) => {
 // Get chat history
 const getHistory = async (req, res) => {
   try {
-    const history = await chatbotService.getHistory(req.user.id);
+    const history = await chatbotService.getHistory(req.user.userId);
 
     res.status(200).json({
       success: true,
@@ -51,7 +51,7 @@ const getHistory = async (req, res) => {
 // Clear history
 const clearHistory = async (req, res) => {
   try {
-    await chatbotService.clearHistory(req.user.id);
+    await chatbotService.clearHistory(req.user.userId);
 
     res.status(200).json({
       success: true,

@@ -5,26 +5,26 @@ const router = express.Router();
 const chatbotController = require("./controller");
 
 // Import your auth middleware
-const auth = require("../../middleware/auth"); // Change this path if your middleware is elsewhere
+const authenticate = require("../auth/auth.middleware");
 
 // Send message
 router.post(
   "/",
-  auth,
+  authenticate,
   chatbotController.sendMessage
 );
 
 // Get chat history
 router.get(
   "/history",
-  auth,
+  authenticate,
   chatbotController.getHistory
 );
 
 // Clear history
 router.delete(
   "/history",
-  auth,
+  authenticate,
   chatbotController.clearHistory
 );
 
