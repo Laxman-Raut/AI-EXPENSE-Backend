@@ -6,6 +6,7 @@ const {
   forgotPassword: forgotPasswordService,
   verifyOtp: verifyOtpService,
   resetPassword: resetPasswordService,
+  handleSupportRequest,
 } = require("./service");
 
 const register = async (req, res) => {
@@ -131,6 +132,27 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const support = async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+    if (!subject || !message) {
+      throw new Error("Subject and message are required");
+    }
+    const result = await handleSupportRequest(req.user.userId, { subject, message });
+
+    res.status(200).json({
+      success: true,
+      message: "Support ticket submitted successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -139,4 +161,5 @@ module.exports = {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  support,
 };

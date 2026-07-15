@@ -21,6 +21,16 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    mobile: {
+      type: String,
+      default: "",
+    },
+
+    age: {
+      type: Number,
+      default: null,
+    },
+
     phone: {
       type: String,
       default: "",
@@ -51,6 +61,12 @@ const userSchema = new mongoose.Schema(
     monthlyBudget: {
       type: Number,
       default: 0,
+    },
+
+    categoryBudgets: {
+      type: Map,
+      of: Number,
+      default: {},
     },
 
     lastVisitedAt: {

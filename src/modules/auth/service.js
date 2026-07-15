@@ -1,7 +1,7 @@
 const User = require("./model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { sendOtpEmail } = require("./mailService");
+const { sendOtpEmail, sendSupportEmail } = require("./mailService");
 const generateOTP = require("./otp");
 
 // Register User
@@ -103,6 +103,12 @@ const updateProfile = async (userId, updateData) => {
   if (updateData.fullName !== undefined) allowedUpdates.fullName = updateData.fullName;
   if (updateData.currency !== undefined) allowedUpdates.currency = updateData.currency;
   if (updateData.monthlyBudget !== undefined) allowedUpdates.monthlyBudget = Number(updateData.monthlyBudget);
+  if (updateData.mobile !== undefined) allowedUpdates.mobile = updateData.mobile;
+  if (updateData.age !== undefined) allowedUpdates.age = Number(updateData.age);
+  if (updateData.categoryBudgets !== undefined) allowedUpdates.categoryBudgets = updateData.categoryBudgets;
+  if (updateData.avatar !== undefined) {
+    allowedUpdates.avatar = typeof updateData.avatar === "string" ? { url: updateData.avatar } : updateData.avatar;
+  }
 
   const user = await User.findByIdAndUpdate(
     userId,
@@ -188,6 +194,25 @@ const resetPassword = async (email, otp, newPassword) => {
   };
 };
 
+const handleSupportRequest = async (userId, { subject, message }) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  await sendSupportEmail({
+    userEmail: user.email,
+    userName: user.fullName,
+    subject,
+    message,
+  });
+
+  return {
+    success: true,
+    message: "Support emails sent successfully",
+  };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -196,4 +221,5 @@ module.exports = {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  handleSupportRequest,
 };
