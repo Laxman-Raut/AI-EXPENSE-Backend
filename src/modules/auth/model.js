@@ -21,9 +21,21 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    avatar: {
+    phone: {
       type: String,
       default: "",
+      trim: true,
+    },
+
+    avatar: {
+      url: {
+        type: String,
+        default: "",
+      },
+      publicId: {
+        type: String,
+        default: "",
+      },
     },
 
     isVerified: {
@@ -39,6 +51,11 @@ const userSchema = new mongoose.Schema(
     monthlyBudget: {
       type: Number,
       default: 0,
+    },
+
+    lastVisitedAt: {
+      type: Date,
+      default: Date.now,
     },
 
     // Forgot Password

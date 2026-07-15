@@ -64,6 +64,10 @@ const loginUser = async ({ email, password }) => {
 
   );
 
+  // Update lastVisitedAt
+  user.lastVisitedAt = new Date();
+  await user.save();
+
   // Remove password
   const userObject = user.toObject();
   delete userObject.password;
@@ -78,7 +82,11 @@ const loginUser = async ({ email, password }) => {
 // Get Profile
 
 const getProfile = async (userId) => {
-  const user = await User.findById(userId).select("-password");
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { lastVisitedAt: new Date() },
+    { new: true }
+  ).select("-password");
 
   if (!user) {
     throw new Error("User not found");
