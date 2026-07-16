@@ -10,10 +10,35 @@ const scanReceiptController = async (req, res) => {
         let mimetype;
         let geminiBase64Data;
 
+        let textData = null;
+
         if (req.file) {
             buffer = req.file.buffer;
             mimetype = req.file.mimetype;
             geminiBase64Data = buffer.toString("base64");
+
+            // Extract spreadsheet sheets as CSV text to send directly in prompt
+            if (
+                mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+                mimetype === "application/vnd.ms-excel" ||
+                (req.file.originalname && (req.file.originalname.endsWith(".xlsx") || req.file.originalname.endsWith(".xls")))
+            ) {
+                try {
+                    const XLSX = require("xlsx");
+                    const workbook = XLSX.read(buffer, { type: "buffer" });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    textData = XLSX.utils.sheet_to_csv(worksheet);
+                } catch (excelErr) {
+                    console.error("XLSX parsing failed:", excelErr);
+                }
+            } else if (
+                mimetype === "text/csv" || 
+                mimetype === "text/plain" ||
+                (req.file.originalname && (req.file.originalname.endsWith(".csv") || req.file.originalname.endsWith(".txt")))
+            ) {
+                textData = buffer.toString("utf-8");
+            }
 
             // Upload directly to Cloudinary using upload_stream (supports PDF and raw files natively)
             const uploadResult = await new Promise((resolve, reject) => {
@@ -53,7 +78,7 @@ const scanReceiptController = async (req, res) => {
             });
         }
         
-        const data = await scanReceipt(geminiBase64Data, mimetype);
+        const data = await scanReceipt(geminiBase64Data, mimetype, textData);
 
         res.status(200).json({
             success: true,
