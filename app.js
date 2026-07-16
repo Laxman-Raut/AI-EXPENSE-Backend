@@ -13,6 +13,7 @@ const voiceRoutes = require("./src/modules/ai/voice/routes");
 const exportRoutes = require("./src/modules/export/routes");
 const notificationRoutes = require("./src/modules/notification/routes");
 const chatbotRoutes = require("./src/modules/chatbot/routes");
+const recurringRoutes = require("./src/modules/recurringTransaction/routes");
 const app = express();
 
 // Middleware
@@ -40,6 +41,7 @@ app.use("/api/voice", voiceRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/recurring-transactions", recurringRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

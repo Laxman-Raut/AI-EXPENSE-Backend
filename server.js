@@ -3,6 +3,7 @@ require("dotenv").config();
 const app = require("./app");
 const connectDB = require("./src/config/db");
 const { startReminderScheduler } = require("./src/modules/notification/scheduler");
+const { startRecurringScheduler } = require("./src/modules/recurringTransaction/scheduler");
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,9 @@ const startServer = async () => {
 
     // Start background inactivity reminders check
     startReminderScheduler();
+
+    // Start background recurring transactions scheduler
+    startRecurringScheduler();
   } catch (error) {
     console.error(error);
   }
