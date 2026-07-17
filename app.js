@@ -15,7 +15,7 @@ const notificationRoutes = require("./src/modules/notification/routes");
 const chatbotRoutes = require("./src/modules/chatbot/routes");
 const recurringRoutes = require("./src/modules/recurringTransaction/routes");
 const subscriptionRoutes = require("./src/modules/subscription/routes");
-
+const paymentRoutes = require("./src/modules/payment/routes");
 const app = express();
 
 // Middleware
@@ -45,6 +45,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/recurring-transactions", recurringRoutes);
 app.use("/api/subscription", subscriptionRoutes);
+app.use("/api/payment", paymentRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({
