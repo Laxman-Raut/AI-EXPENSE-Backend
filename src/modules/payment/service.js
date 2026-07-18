@@ -7,27 +7,29 @@ const User = require("../auth/model");
 // Create Order
 
 const createOrder = async (userId, plan) => {
-  let amount = 0;
+  let amount = 0; // Amount in standard Rupees
 
   switch (plan) {
     case "pro_monthly":
-      amount = 19900; // ₹199
+      amount = 199; // ₹199
       break;
 
     case "pro_yearly":
-      amount = 199900; // ₹1999
+      amount = 1999; // ₹1999
       break;
 
     default:
       throw new Error("Invalid subscription plan");
   }
 
+  // Razorpay API expects amount in subunit/paise (Rupees * 100)
   const order = await razorpay.orders.create({
-    amount,
+    amount: amount * 100,
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
   });
 
+  // Store standard amount (Rupees) in our local database
   const payment = await Payment.create({
     userId,
     amount,

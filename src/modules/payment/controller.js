@@ -5,9 +5,11 @@ const {
   getPaymentById,
 } = require("./service");
 
-// =================================
+
+
 // Create Razorpay Order
-// =================================
+
+
 const createPaymentOrder = async (req, res) => {
   try {
     const { plan } = req.body;
@@ -27,9 +29,7 @@ const createPaymentOrder = async (req, res) => {
   }
 };
 
-// =================================
 // Verify Payment
-// =================================
 const verifyPaymentController = async (req, res) => {
   try {
     const result = await verifyPayment(req.body);
@@ -47,9 +47,7 @@ const verifyPaymentController = async (req, res) => {
   }
 };
 
-// =================================
 // Payment History
-// =================================
 const paymentHistory = async (req, res) => {
   try {
     const payments = await getPaymentHistory(req.user.userId);
@@ -67,9 +65,7 @@ const paymentHistory = async (req, res) => {
   }
 };
 
-// =================================
 // Payment Details
-// =================================
 const paymentDetails = async (req, res) => {
   try {
     const payment = await getPaymentById(
