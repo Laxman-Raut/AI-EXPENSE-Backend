@@ -15,8 +15,7 @@ const notificationRoutes = require("./src/modules/notification/routes");
 const chatbotRoutes = require("./src/modules/chatbot/routes");
 const recurringRoutes = require("./src/modules/recurringTransaction/routes");
 const subscriptionRoutes = require("./src/modules/subscription/routes");
-const paymentRoutes = require("./src/modules/payment/routes");
-const app = express();
+const paymentRoutes = require("./src/modules/payment/routes");const app = express();
 
 // Middleware
 app.use(
