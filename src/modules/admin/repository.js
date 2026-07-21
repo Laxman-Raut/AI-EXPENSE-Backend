@@ -1,10 +1,10 @@
 const User = require("../auth/model");
 const Payment = require("../payment/model");
 const Plan = require("../plan/model");
+const SubscriptionHistory = require("../subscription-history/model");
 
-// ==============================
+
 // Users
-// ==============================
 
 const getTotalUsers = () => User.countDocuments();
 
@@ -418,9 +418,6 @@ const getUserById = async (userId) => {
   };
 };
 
-const Plan = require("../subscription/plan.model"); // adjust path according to your project
-
-
 // Get Plans
 // ======================================
 
@@ -631,7 +628,13 @@ const getSubscriptions = async ({
 
     const filter = {};
 
-    if (status) {
+    if (status === "expiring_soon") {
+        const now = new Date();
+        const soon = new Date();
+        soon.setDate(soon.getDate() + 3); // 3 days threshold
+        filter["subscription.status"] = "active";
+        filter["subscription.endDate"] = { $gte: now, $lte: soon };
+    } else if (status) {
         filter["subscription.status"] = status;
     }
 
@@ -795,16 +798,181 @@ const activateSubscription = async (
         userId: user._id,
         amount: 0,
         currency: plan.currency,
-        plan: plan.slug,
+        plan: plan.slug === "pro" ? "pro_monthly" : plan.slug,
         provider: "manual",
         status: "success",
         paidAt: new Date(),
+    });
+
+    await SubscriptionHistory.create({
+        userId: user._id,
+        planId: plan._id,
+        paymentId: payment._id,
+        action: "activated",
+        provider: "manual",
+        startDate,
+        endDate,
+        amount: 0,
+        currency: plan.currency,
+        note: "Activated manually by admin.",
+        createdBy: adminId,
     });
 
     return {
         user,
         payment,
     };
+};
+
+// ======================================
+// Subscription Timeline
+// ======================================
+
+const getSubscriptionTimeline = async (
+    userId
+) => {
+
+    return await SubscriptionHistory.find({
+        userId,
+    })
+        .populate(
+            "planId",
+            "name version price"
+        )
+        .populate(
+            "createdBy",
+            "fullName email"
+        )
+        .sort({
+            createdAt: -1,
+        });
+
+};
+
+// ======================================
+// Cancel Subscription
+// ======================================
+
+const cancelSubscription = async (
+  userId,
+  adminId
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (user.subscription.status !== "active") {
+    throw new Error("Subscription is not active.");
+  }
+
+  const plan = await Plan.findOne({
+    slug: user.subscription.plan,
+    isCurrent: true,
+  });
+
+  user.subscription.status = "cancelled";
+  user.subscription.autoRenew = false;
+  user.subscription.endDate = new Date();
+
+  await user.save();
+
+  await SubscriptionHistory.create({
+    userId: user._id,
+    planId: plan?._id || null,
+    action: "cancelled",
+    provider: user.subscription.provider,
+    startDate: user.subscription.startDate,
+    endDate: user.subscription.endDate,
+    amount: 0,
+    currency: "INR",
+    note: "Cancelled manually by admin.",
+    createdBy: adminId,
+  });
+
+  return user.subscription;
+};
+
+// ======================================
+// Extend Subscription
+// ======================================
+
+const extendSubscription = async (
+  userId,
+  durationDays,
+  note,
+  adminId
+) => {
+  const user = await User.findById(userId);
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (!durationDays || durationDays <= 0) {
+    throw new Error("durationDays must be a positive number.");
+  }
+
+  let planSlug = user.subscription.plan;
+  if (planSlug === "free" || !planSlug) {
+    planSlug = "pro";
+  }
+
+  const plan = await Plan.findOne({
+    slug: planSlug,
+    isCurrent: true,
+  }) || await Plan.findOne({ slug: planSlug });
+
+  const now = new Date();
+  let startDate = user.subscription.startDate || now;
+  let currentEndDate = user.subscription.endDate;
+
+  let newEndDate;
+  if (user.subscription.status === "active" && currentEndDate && currentEndDate > now) {
+    newEndDate = new Date(currentEndDate);
+  } else {
+    newEndDate = new Date(now);
+    startDate = now;
+  }
+  newEndDate.setDate(newEndDate.getDate() + Number(durationDays));
+
+  user.subscription = {
+    plan: plan ? plan.slug : "pro",
+    status: "active",
+    provider: "manual",
+    startDate,
+    endDate: newEndDate,
+    autoRenew: false,
+  };
+
+  await user.save();
+
+  const payment = await Payment.create({
+    userId: user._id,
+    amount: 0,
+    currency: plan ? plan.currency : "INR",
+    plan: plan ? (plan.slug === "pro" ? "pro_monthly" : plan.slug) : "pro_monthly",
+    provider: "manual",
+    status: "success",
+    paidAt: now,
+  });
+
+  await SubscriptionHistory.create({
+    userId: user._id,
+    planId: plan ? plan._id : null,
+    paymentId: payment._id,
+    action: "extended",
+    provider: "manual",
+    startDate,
+    endDate: newEndDate,
+    amount: 0,
+    currency: plan ? plan.currency : "INR",
+    note: note || `Extended by ${durationDays} days manually by admin.`,
+    createdBy: adminId,
+  });
+
+  return user.subscription;
 };
 
 module.exports = {
@@ -835,4 +1003,7 @@ module.exports = {
     getSubscriptions,
     getSubscriptionById,
     activateSubscription,
+    getSubscriptionTimeline,
+    cancelSubscription,
+    extendSubscription,
 };

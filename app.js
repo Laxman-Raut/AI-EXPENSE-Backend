@@ -16,8 +16,8 @@ const chatbotRoutes = require("./src/modules/chatbot/routes");
 const recurringRoutes = require("./src/modules/recurringTransaction/routes");
 const subscriptionRoutes = require("./src/modules/subscription/routes");
 const paymentRoutes = require("./src/modules/payment/routes");
-const planRoutes = require("./modules/plan/routes");
-const adminRoutes = require("./modules/admin/routes");
+const planRoutes = require("./src/modules/plan/routes");
+const adminRoutes = require("./src/modules/admin/routes");
 
 const app = express();
 

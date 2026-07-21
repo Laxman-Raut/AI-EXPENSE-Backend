@@ -1,5 +1,7 @@
 const User = require("../auth/model");
 const Payment = require("../payment/model");
+const Plan = require("../plan/model");
+const SubscriptionHistory = require("../subscription-history/model");
 
 /**
  * Validates and synchronizes the user's subscription state in the database.
@@ -20,6 +22,20 @@ const syncUserSubscription = async (user) => {
   ) {
     user.subscription.status = "expired";
     await user.save();
+
+    // Log the expiration event on-demand
+    const plan = await Plan.findOne({ slug: "pro", isCurrent: true }) || await Plan.findOne({ slug: "pro" });
+    await SubscriptionHistory.create({
+      userId: user._id,
+      planId: plan ? plan._id : null,
+      action: "expired",
+      provider: user.subscription.provider,
+      startDate: user.subscription.startDate,
+      endDate: user.subscription.endDate,
+      amount: 0,
+      currency: plan ? plan.currency : "INR",
+      note: "Subscription expired automatically (on-demand sync).",
+    });
     return;
   }
 
@@ -36,6 +52,8 @@ const syncUserSubscription = async (user) => {
     });
 
     if (!hasSuccessfulPayment) {
+      const plan = await Plan.findOne({ slug: "pro", isCurrent: true }) || await Plan.findOne({ slug: "pro" });
+
       user.subscription = {
         plan: "free",
         status: "inactive",
@@ -45,6 +63,19 @@ const syncUserSubscription = async (user) => {
         autoRenew: false,
       };
       await user.save();
+
+      // Log the downgrade event
+      await SubscriptionHistory.create({
+        userId: user._id,
+        planId: plan ? plan._id : null,
+        action: "cancelled",
+        provider: "none",
+        startDate: null,
+        endDate: null,
+        amount: 0,
+        currency: "INR",
+        note: "Subscription cancelled automatically due to missing payment record (integrity check).",
+      });
     }
   }
 };
@@ -64,6 +95,8 @@ const upgradeSubscription = async (userId) => {
 
   if (!user) throw new Error("User not found");
 
+  const plan = await Plan.findOne({ slug: "pro", isCurrent: true }) || await Plan.findOne({ slug: "pro" });
+
   user.subscription = {
     plan: "pro",
     status: "active",
@@ -75,6 +108,18 @@ const upgradeSubscription = async (userId) => {
 
   await user.save();
 
+  await SubscriptionHistory.create({
+    userId: user._id,
+    planId: plan ? plan._id : null,
+    action: "upgraded",
+    provider: "manual",
+    startDate: user.subscription.startDate,
+    endDate: user.subscription.endDate,
+    amount: plan ? plan.price : 0,
+    currency: plan ? plan.currency : "INR",
+    note: "Upgraded by user.",
+  });
+
   return user.subscription;
 };
 
@@ -83,9 +128,11 @@ const cancelSubscription = async (userId) => {
 
   if (!user) throw new Error("User not found");
 
+  const plan = await Plan.findOne({ slug: user.subscription.plan, isCurrent: true }) || await Plan.findOne({ slug: user.subscription.plan });
+
   user.subscription = {
     plan: "free",
-    status: "inactive",
+    status: "cancelled",
     provider: "none",
     startDate: null,
     endDate: null,
@@ -93,6 +140,18 @@ const cancelSubscription = async (userId) => {
   };
 
   await user.save();
+
+  await SubscriptionHistory.create({
+    userId: user._id,
+    planId: plan ? plan._id : null,
+    action: "cancelled",
+    provider: user.subscription.provider,
+    startDate: null,
+    endDate: null,
+    amount: 0,
+    currency: "INR",
+    note: "Cancelled by user.",
+  });
 
   return user.subscription;
 };
@@ -110,9 +169,16 @@ const getSubscriptionStatus = async (userId) => {
   );
 };
 
+const getSubscriptionTimeline = async (userId) => {
+  return await SubscriptionHistory.find({ userId })
+    .populate("planId", "name version price")
+    .sort({ createdAt: -1 });
+};
+
 module.exports = {
   getSubscription,
   upgradeSubscription,
   cancelSubscription,
   getSubscriptionStatus,
+  getSubscriptionTimeline,
 };

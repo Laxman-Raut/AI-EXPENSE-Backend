@@ -25,6 +25,10 @@ const {
     getPlanById,
     getSubscriptions,
     getSubscriptionById,
+    activateSubscription,
+    getSubscriptionTimeline,
+    cancelSubscription,
+    extendSubscription,
 } = require("./repository");
 
 // ======================================
@@ -234,6 +238,64 @@ const getSubscriptionByIdService = async (
   return await getSubscriptionById(userId);
 };
 
+// ======================================
+// Activate Subscription
+// ======================================
+
+const activateSubscriptionService = async (
+    userId,
+    body,
+    adminId
+) => {
+
+    return await activateSubscription(
+        userId,
+        body.planId,
+        adminId
+    );
+
+};
+
+const getSubscriptionTimelineService =
+async (userId) => {
+
+    return await getSubscriptionTimeline(
+        userId
+    );
+
+};
+
+// ======================================
+// Cancel Subscription
+// ======================================
+
+const cancelSubscriptionService = async (
+  userId,
+  adminId
+) => {
+  return await cancelSubscription(
+    userId,
+    adminId
+  );
+};
+
+// ======================================
+// Extend Subscription
+// ======================================
+
+const extendSubscriptionService = async (
+  userId,
+  body,
+  adminId
+) => {
+  return await extendSubscription(
+    userId,
+    body.durationDays,
+    body.note,
+    adminId
+  );
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -244,5 +306,9 @@ module.exports = {
     updatePlanStatusService,
     getPlanByIdService,
     getSubscriptionsService,
-    getSubscriptionById,
+    getSubscriptionByIdService,
+    activateSubscriptionService,
+    getSubscriptionTimelineService,
+    cancelSubscriptionService,
+    extendSubscriptionService,
 };

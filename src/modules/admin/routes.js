@@ -13,6 +13,10 @@ const {
    getPlanById,
    getSubscriptions,
    getSubscriptionById,
+   activateSubscription,
+   getSubscriptionTimeline,
+   cancelSubscription,
+   extendSubscription,
 } = require("./controller");
 
 
@@ -97,6 +101,34 @@ router.get(
   authenticate,
   requireAdmin,
   getSubscriptionById
+);
+
+router.patch(
+    "/subscriptions/:id/activate",
+    authenticate,
+    requireAdmin,
+    activateSubscription
+);
+
+router.get(
+    "/subscriptions/:id/timeline",
+    authenticate,
+    requireAdmin,
+    getSubscriptionTimeline
+);
+
+router.patch(
+  "/subscriptions/:id/cancel",
+  authenticate,
+  requireAdmin,
+  cancelSubscription
+);
+
+router.patch(
+  "/subscriptions/:id/extend",
+  authenticate,
+  requireAdmin,
+  extendSubscription
 );
 
 module.exports = router;
