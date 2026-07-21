@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-   
+
     // Personal Information
-   
+
 
     fullName: {
       type: String,
@@ -36,6 +36,17 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    role: {
+      type: String,
+      enum: ["user", "admin", "super_admin"],
+      default: "user",
+    },
+
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
     avatar: {
       url: {
         type: String,
@@ -52,9 +63,9 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-   
+
     // Finance
-   
+
 
     currency: {
       type: String,
@@ -77,9 +88,9 @@ const userSchema = new mongoose.Schema(
       default: Date.now,
     },
 
-   
+
     // Subscription
-   
+
 
     subscription: {
       plan: {
@@ -116,50 +127,50 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-   
+
     // AI Usage
-   
-aiUsage: {
-  chatbot: {
-    used: {
-      type: Number,
-      default: 0,
+
+    aiUsage: {
+      chatbot: {
+        used: {
+          type: Number,
+          default: 0,
+        },
+
+        limit: {
+          type: Number,
+          default: 0,
+        },
+      },
+
+      receiptScanner: {
+        used: {
+          type: Number,
+          default: 0,
+        },
+
+        limit: {
+          type: Number,
+          default: 0,
+        },
+      },
+
+      voiceScanner: {
+        used: {
+          type: Number,
+          default: 0,
+        },
+
+        limit: {
+          type: Number,
+          default: 0,
+        },
+      },
     },
 
-    limit: {
-      type: Number,
-      default: 0,
-    },
-  },
 
-  receiptScanner: {
-    used: {
-      type: Number,
-      default: 0,
-    },
-
-    limit: {
-      type: Number,
-      default: 0,
-    },
-  },
-
-  voiceScanner: {
-    used: {
-      type: Number,
-      default: 0,
-    },
-
-    limit: {
-      type: Number,
-      default: 0,
-    },
-  },
-},
-
-    
     // Forgot Password
-   
+
 
     resetOtp: {
       type: String,
@@ -176,4 +187,6 @@ aiUsage: {
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+
+module.exports= User;

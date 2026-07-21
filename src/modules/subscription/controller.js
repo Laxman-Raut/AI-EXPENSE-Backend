@@ -3,6 +3,7 @@ const {
   upgradeSubscription,
   cancelSubscription,
   getSubscriptionStatus,
+  getSubscriptionTimeline,
 } = require("./service");
 
 const getCurrentSubscription = async (req, res) => {
@@ -71,9 +72,26 @@ const status = async (req, res) => {
   }
 };
 
+const getTimeline = async (req, res) => {
+  try {
+    const data = await getSubscriptionTimeline(req.user.userId);
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getCurrentSubscription,
   upgrade,
   cancel,
   status,
+  getTimeline,
 };
