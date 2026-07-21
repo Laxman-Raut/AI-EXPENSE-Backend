@@ -1,20 +1,10 @@
-const User = require("./model");
+const { getSubscriptionStatus } = require("../subscription/service");
 
 const requirePro = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const isProActive = await getSubscriptionStatus(req.user.userId);
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    if (
-      user.subscription.plan !== "pro" ||
-      user.subscription.status !== "active"
-    ) {
+    if (!isProActive) {
       return res.status(403).json({
         success: false,
         message: "Upgrade to Pro to access this feature.",
