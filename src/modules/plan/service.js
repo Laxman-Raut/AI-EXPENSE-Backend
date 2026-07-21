@@ -11,9 +11,7 @@ const {
   deletePlan,
 } = require("./repository");
 
-// ======================================
 // Create Plan
-// ======================================
 const createPlanService = async (planData, adminId) => {
   const existingPlan = await findCurrentPlanBySlug(planData.slug);
 
@@ -33,23 +31,17 @@ const createPlanService = async (planData, adminId) => {
   });
 };
 
-// ======================================
 // Get All Plans
-// ======================================
 const getAllPlansService = async () => {
   return await findAllPlans();
 };
 
-// ======================================
 // Get Public Plans
-// ======================================
 const getPublicPlansService = async () => {
   return await findPublicPlans();
 };
 
-// ======================================
 // Get Plan By ID
-// ======================================
 const getPlanByIdService = async (id) => {
   const plan = await findPlanById(id);
 
@@ -60,16 +52,12 @@ const getPlanByIdService = async (id) => {
   return plan;
 };
 
-// ======================================
 // Get Plan History
-// ======================================
 const getPlanHistoryService = async (slug) => {
   return await findPlanHistory(slug);
 };
 
-// ======================================
 // Create New Version
-// ======================================
 const createPlanVersionService = async (
   id,
   updateData,
@@ -113,9 +101,7 @@ const createPlanVersionService = async (
   return await activatePlan(newPlan._id);
 };
 
-// ======================================
 // Update Draft Plan
-// ======================================
 const updateDraftPlanService = async (
   id,
   updateData,
@@ -142,9 +128,7 @@ const updateDraftPlanService = async (
   return await updateDraftPlan(id, updateData);
 };
 
-// ======================================
 // Delete Draft Plan
-// ======================================
 const deletePlanService = async (id) => {
   const plan = await findPlanById(id);
 

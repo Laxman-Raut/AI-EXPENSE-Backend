@@ -1,15 +1,11 @@
 const Plan = require("./model");
 
-// ======================================
 // Create Plan
-// ======================================
 const createPlan = async (planData) => {
   return await Plan.create(planData);
 };
 
-// ======================================
 // Find Current Plan By Slug
-// ======================================
 const findCurrentPlanBySlug = async (slug) => {
   return await Plan.findOne({
     slug,
@@ -17,16 +13,12 @@ const findCurrentPlanBySlug = async (slug) => {
   });
 };
 
-// ======================================
 // Find Plan By ID
-// ======================================
 const findPlanById = async (id) => {
   return await Plan.findById(id);
 };
 
-// ======================================
 // Get All Plans (Admin)
-// ======================================
 const findAllPlans = async () => {
   return await Plan.find().sort({
     displayOrder: 1,
@@ -34,9 +26,7 @@ const findAllPlans = async () => {
   });
 };
 
-// ======================================
 // Get Public Plans (App)
-// ======================================
 const findPublicPlans = async () => {
   return await Plan.find({
     status: "active",
@@ -47,18 +37,14 @@ const findPublicPlans = async () => {
   });
 };
 
-// ======================================
 // Get Plan History
-// ======================================
 const findPlanHistory = async (slug) => {
   return await Plan.find({ slug }).sort({
     version: -1,
   });
 };
 
-// ======================================
 // Archive Current Version
-// ======================================
 const archiveCurrentPlan = async (
   currentPlanId,
   newPlanId
@@ -76,9 +62,7 @@ const archiveCurrentPlan = async (
   );
 };
 
-// ======================================
 // Activate New Version
-// ======================================
 const activatePlan = async (planId) => {
   return await Plan.findByIdAndUpdate(
     planId,
@@ -92,9 +76,7 @@ const activatePlan = async (planId) => {
   );
 };
 
-// ======================================
 // Update Draft Plan
-// ======================================
 const updateDraftPlan = async (
   id,
   updateData
@@ -109,9 +91,7 @@ const updateDraftPlan = async (
   );
 };
 
-// ======================================
 // Delete Draft Plan
-// ======================================
 const deletePlan = async (id) => {
   return await Plan.findByIdAndDelete(id);
 };

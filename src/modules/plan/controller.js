@@ -9,9 +9,7 @@ const {
   deletePlanService,
 } = require("./service");
 
-// ======================================
 // Create Plan
-// ======================================
 const createPlan = async (req, res) => {
   try {
     const plan = await createPlanService(req.body, req.user.userId);
@@ -29,9 +27,7 @@ const createPlan = async (req, res) => {
   }
 };
 
-// ======================================
 // Get All Plans (Admin)
-// ======================================
 const getAllPlans = async (req, res) => {
   try {
     const plans = await getAllPlansService();
@@ -48,9 +44,7 @@ const getAllPlans = async (req, res) => {
   }
 };
 
-// ======================================
 // Get Public Plans (Mobile App)
-// ======================================
 const getPublicPlans = async (req, res) => {
   try {
     const plans = await getPublicPlansService();
@@ -67,9 +61,7 @@ const getPublicPlans = async (req, res) => {
   }
 };
 
-// ======================================
 // Get Plan By ID
-// ======================================
 const getPlanById = async (req, res) => {
   try {
     const plan = await getPlanByIdService(req.params.id);
@@ -86,9 +78,7 @@ const getPlanById = async (req, res) => {
   }
 };
 
-// ======================================
 // Get Plan History
-// ======================================
 const getPlanHistory = async (req, res) => {
   try {
     const plans = await getPlanHistoryService(req.params.slug);
@@ -105,9 +95,7 @@ const getPlanHistory = async (req, res) => {
   }
 };
 
-// ======================================
 // Create New Plan Version
-// ======================================
 const createPlanVersion = async (req, res) => {
   try {
     const plan = await createPlanVersionService(
@@ -129,9 +117,7 @@ const createPlanVersion = async (req, res) => {
   }
 };
 
-// ======================================
 // Update Draft Plan
-// ======================================
 const updateDraftPlan = async (req, res) => {
   try {
     const plan = await updateDraftPlanService(
@@ -153,9 +139,7 @@ const updateDraftPlan = async (req, res) => {
   }
 };
 
-// ======================================
 // Delete Draft Plan
-// ======================================
 const removePlan = async (req, res) => {
   try {
     const result = await deletePlanService(req.params.id);
