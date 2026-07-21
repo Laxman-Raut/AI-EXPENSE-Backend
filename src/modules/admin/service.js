@@ -29,7 +29,6 @@ const {
     getSubscriptionTimeline,
     cancelSubscription,
     extendSubscription,
-    getPayments,
 } = require("./repository");
 
 // ======================================
@@ -297,26 +296,6 @@ const extendSubscriptionService = async (
   );
 };
 
-const getPaymentsService = async (query) => {
-  const {
-    page = 1,
-    limit = 10,
-    search = "",
-    status,
-    provider,
-    sort = "-createdAt",
-  } = query;
-
-  return await getPayments({
-    page: Number(page),
-    limit: Number(limit),
-    search,
-    status,
-    provider,
-    sort,
-  });
-};
-
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -332,5 +311,4 @@ module.exports = {
     getSubscriptionTimelineService,
     cancelSubscriptionService,
     extendSubscriptionService,
-    getPaymentsService,
 };
