@@ -8,9 +8,10 @@ const generateOTP = require("./otp");
 
 const registerUser = async (userData) => {
   const { fullName, email, password } = userData;
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
 
   // Check if user already exists
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ email: cleanEmail });
 
   if (existingUser) {
     throw new Error("Email already registered");
@@ -21,8 +22,8 @@ const registerUser = async (userData) => {
 
   // Create user
   const user = await User.create({
-    fullName,
-    email,
+    fullName: fullName.trim(),
+    email: cleanEmail,
     password: hashedPassword,
   });
 
@@ -37,8 +38,10 @@ const registerUser = async (userData) => {
 // Login User
 
 const loginUser = async ({ email, password }) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
+
   // Find user
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: cleanEmail });
 
   if (!user) {
     throw new Error("User not found");

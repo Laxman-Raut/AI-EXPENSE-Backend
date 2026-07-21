@@ -9,11 +9,12 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    await connectDB();
-
     app.listen(PORT, "0.0.0.0", () => {
       console.log(` Server running on http://0.0.0.0:${PORT}`);
     });
+
+    // Connect to DB (non-blocking so server stays active even if DB delays)
+    await connectDB();
 
     // Start background inactivity reminders check
     startReminderScheduler();
@@ -21,7 +22,7 @@ const startServer = async () => {
     // Start background recurring transactions scheduler
     startRecurringScheduler();
   } catch (error) {
-    console.error(error);
+    console.error("Server initialization error:", error);
   }
 };
 
