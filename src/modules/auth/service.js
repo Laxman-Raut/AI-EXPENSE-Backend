@@ -1,7 +1,7 @@
 const User = require("./model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { sendOtpEmail, sendSupportEmail } = require("./mailService");
+const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail } = require("../email");
 const generateOTP = require("./otp");
 
 // Register User
@@ -25,6 +25,11 @@ const registerUser = async (userData) => {
     fullName: fullName.trim(),
     email: cleanEmail,
     password: hashedPassword,
+  });
+
+  // Send welcome email asynchronously (non-blocking)
+  sendWelcomeEmail(cleanEmail, fullName.trim()).catch((err) => {
+    console.warn("[Email Service] Welcome email send warning:", err.message);
   });
 
   // Remove password
