@@ -17,6 +17,7 @@ const {
    getSubscriptionTimeline,
    cancelSubscription,
    extendSubscription,
+   getPayments,
 } = require("./controller");
 
 
@@ -49,6 +50,14 @@ router.get(
   authenticate,
   requireAdmin,
   getUserById
+);
+
+// Payments
+router.get(
+  "/payments",
+  authenticate,
+  requireAdmin,
+  getPayments
 );
 
 // Plans

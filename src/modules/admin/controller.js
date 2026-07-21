@@ -13,6 +13,7 @@ const {
     getSubscriptionTimelineService,
     cancelSubscriptionService,
     extendSubscriptionService,
+    getPaymentsService,
 } = require("./service");
 
 // ======================================
@@ -394,9 +395,26 @@ const extendSubscription = async (
     }
 };
 
+const getPayments = async (req, res) => {
+  try {
+    const data = await getPaymentsService(req.query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Payments fetched successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
-    getUsers,
+  getUsers,
      getUserById,
      getPlans,
      createPlan,
@@ -409,4 +427,5 @@ module.exports = {
       getSubscriptionTimeline,
       cancelSubscription,
       extendSubscription,
+      getPayments,
 };
