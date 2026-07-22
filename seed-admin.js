@@ -2,6 +2,12 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const path = require('path');
+const dns = require('dns');
+
+try {
+  dns.setDefaultResultOrder("ipv4first");
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (dnsErr) {}
 
 // Load environment variables from backend directory
 dotenv.config({ path: path.join(__dirname, '.env') });

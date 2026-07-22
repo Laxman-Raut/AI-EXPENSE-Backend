@@ -1,0 +1,15 @@
+* [33m37fd022[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m fix(backend): fix plan validation crash, schema duplicate keys, and admin seeder
+*   [33m937cec5[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Merge branch 'main' of https://github.com/Laxman-Raut/AI-EXPENSE-Backend # Please enter a commit message to explain why this merge is necessary, # especially if it merges an updated upstream into a topic branch. # # Lines starting with '#' will be ignored, and an empty message aborts # the commit.
+[32m|[m[33m\[m  
+[32m|[m * [33maac5270[m Add admin payments management and documentation
+[32m|[m * [33mc8386b1[m Add subscription history, admin routes, scheduler
+[32m|[m *   [33m49acbf6[m Merge branch 'main' of https://github.com/Laxman-Raut/AI-EXPENSE-Backend
+[32m|[m [34m|[m[35m\[m  
+[32m|[m * [35m|[m [33m0040e5f[m Add admin dashboard and plan management modules
+* [35m|[m [35m|[m [33mdcc8d9f[m backup: complete AI Expense Tracker
+[35m|[m [35m|[m[35m/[m  
+[35m|[m[35m/[m[35m|[m   
+* [35m|[m [33mb6e72f5[m  finding and fixing bugs
+[35m|[m[35m/[m  
+* [33mf4b5933[m razorpay bug fix
+* [33m3d850ed[m  razorpay test

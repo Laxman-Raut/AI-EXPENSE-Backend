@@ -1,12 +1,13 @@
 require("dotenv").config();
-
-const { sendOtpEmail } = require("./src/modules/auth/mailService");
+const { sendOtpEmail, sendWelcomeEmail } = require("./src/modules/email");
 
 (async () => {
   try {
-    await sendOtpEmail("YOUR_EMAIL@gmail.com", "123456");
-    console.log("Email sent successfully!");
+    console.log("Testing email service from src/modules/email...");
+    console.log("Email module loaded successfully!");
+    process.exit(0);
   } catch (err) {
-    console.error(err);
+    console.error("Email module test error:", err);
+    process.exit(1);
   }
 })();
