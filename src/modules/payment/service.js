@@ -112,6 +112,19 @@ const verifyPayment = async ({
 
   await user.save();
 
+  // Send automatic SMTP invoice email to user
+  try {
+    const { sendInvoiceEmail } = require("../email/emailService");
+    sendInvoiceEmail({
+      userEmail: user.email,
+      userName: user.fullName,
+      payment,
+      subscription: user.subscription,
+    });
+  } catch (emailError) {
+    console.error("Failed to trigger automatic invoice email:", emailError);
+  }
+
   return {
     payment,
     subscription: user.subscription,

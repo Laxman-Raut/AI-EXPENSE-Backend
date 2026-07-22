@@ -1,5 +1,6 @@
 const transporter = require("./transporter");
 const welcomeTemplate = require("./templates/welcome");
+const invoiceTemplate = require("./templates/invoice");
 
 // Send Password Reset OTP Email
 const sendOtpEmail = async (email, otp) => {
@@ -87,9 +88,41 @@ const sendSubscriptionEmail = async (email, userName, planName, action) => {
   });
 };
 
+// Send Beautiful Subscription Invoice Email
+const sendInvoiceEmail = async ({ userEmail, userName, payment, subscription }) => {
+  try {
+    const planNameFormatted = payment.plan === "pro_yearly" ? "Pro Yearly Plan" : "Pro Monthly Plan";
+    const amountFormatted = payment.amount || (payment.plan === "pro_yearly" ? 1999 : 199);
+
+    const htmlContent = invoiceTemplate({
+      userName: userName || "Valued Customer",
+      userEmail,
+      planName: planNameFormatted,
+      amount: amountFormatted,
+      currency: payment.currency || "INR",
+      orderId: payment.razorpayOrderId || "N/A",
+      paymentId: payment.razorpayPaymentId || "N/A",
+      paidAt: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
+      startDate: subscription?.startDate ? new Date(subscription.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+      endDate: subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A",
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: userEmail,
+      subject: `Payment Receipt & Invoice for ${planNameFormatted} - AI Expense Tracker`,
+      html: htmlContent,
+    });
+    console.log(`✅ Subscription Invoice email sent successfully to ${userEmail}`);
+  } catch (error) {
+    console.error("❌ Failed to send Subscription Invoice email:", error);
+  }
+};
+
 module.exports = {
   sendOtpEmail,
   sendSupportEmail,
   sendWelcomeEmail,
   sendSubscriptionEmail,
+  sendInvoiceEmail,
 };
