@@ -47,6 +47,12 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    accountStatus: {
+      type: String,
+      enum: ["active", "suspended"],
+      default: "active",
+    },
+
     avatar: {
       url: {
         type: String,

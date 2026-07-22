@@ -4,7 +4,7 @@ const notificationService = require("./service");
 const getNotifications = async (req, res) => {
   try {
     const notifications =
-      await notificationService.getUserNotifications(req.user.id);
+      await notificationService.getUserNotifications(req.user.userId);
 
     res.status(200).json({
       success: true,
@@ -25,7 +25,7 @@ const createNotification = async (req, res) => {
 
     const notification =
       await notificationService.createNotification({
-        user: req.user.id,
+        user: req.user.userId,
         title,
         body,
         type,
@@ -82,7 +82,7 @@ const deleteNotification = async (req, res) => {
 // Clear all notifications
 const clearNotifications = async (req, res) => {
   try {
-    await notificationService.clearAllNotifications(req.user.id);
+    await notificationService.clearAllNotifications(req.user.userId);
 
     res.status(200).json({
       success: true,

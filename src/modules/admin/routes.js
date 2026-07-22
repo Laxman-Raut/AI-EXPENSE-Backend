@@ -17,6 +17,10 @@ const {
    getSubscriptionTimeline,
    cancelSubscription,
    extendSubscription,
+   getAdminPayments,
+   getAiUsageStats,
+   getSubscriptionMetrics,
+   toggleUserStatus,
 } = require("./controller");
 
 
@@ -49,6 +53,14 @@ router.get(
   authenticate,
   requireAdmin,
   getUserById
+);
+
+// Toggle user account status (active ↔ suspended)
+router.patch(
+  "/users/:id/status",
+  authenticate,
+  requireAdmin,
+  toggleUserStatus
 );
 
 // Plans
@@ -96,6 +108,14 @@ router.get(
     getSubscriptions
 );
 
+// IMPORTANT: /subscriptions/metrics MUST be declared before /subscriptions/:id
+router.get(
+  "/subscriptions/metrics",
+  authenticate,
+  requireAdmin,
+  getSubscriptionMetrics
+);
+
 router.get(
   "/subscriptions/:id",
   authenticate,
@@ -129,6 +149,29 @@ router.patch(
   authenticate,
   requireAdmin,
   extendSubscription
+);
+
+
+// ======================================
+// Payments Ledger
+// ======================================
+
+router.get(
+  "/payments",
+  authenticate,
+  requireAdmin,
+  getAdminPayments
+);
+
+// ======================================
+// AI Usage Stats
+// ======================================
+
+router.get(
+  "/ai-usage",
+  authenticate,
+  requireAdmin,
+  getAiUsageStats
 );
 
 module.exports = router;

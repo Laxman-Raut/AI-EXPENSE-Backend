@@ -29,6 +29,10 @@ const {
     getSubscriptionTimeline,
     cancelSubscription,
     extendSubscription,
+    getAdminPayments,
+    getAiUsageStats,
+    getSubscriptionMetrics,
+    toggleUserAccountStatus,
 } = require("./repository");
 
 // ======================================
@@ -296,6 +300,56 @@ const extendSubscriptionService = async (
   );
 };
 
+// ======================================
+// Admin Payments Ledger
+// ======================================
+
+const getAdminPaymentsService = async (query) => {
+    const {
+        page = 1,
+        limit = 10,
+        status,
+        plan,
+        search,
+        startDate,
+        endDate,
+    } = query;
+
+    return await getAdminPayments({
+        page: Number(page),
+        limit: Number(limit),
+        status,
+        plan,
+        search,
+        startDate,
+        endDate,
+    });
+};
+
+// ======================================
+// Admin AI Usage Stats
+// ======================================
+
+const getAiUsageStatsService = async () => {
+    return await getAiUsageStats();
+};
+
+// ======================================
+// Subscription Metrics
+// ======================================
+
+const getSubscriptionMetricsService = async () => {
+    return await getSubscriptionMetrics();
+};
+
+// ======================================
+// Toggle User Account Status
+// ======================================
+
+const toggleUserStatusService = async (userId) => {
+    return await toggleUserAccountStatus(userId);
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -311,4 +365,8 @@ module.exports = {
     getSubscriptionTimelineService,
     cancelSubscriptionService,
     extendSubscriptionService,
+    getAdminPaymentsService,
+    getAiUsageStatsService,
+    getSubscriptionMetricsService,
+    toggleUserStatusService,
 };

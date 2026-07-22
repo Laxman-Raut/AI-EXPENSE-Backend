@@ -13,6 +13,10 @@ const {
     getSubscriptionTimelineService,
     cancelSubscriptionService,
     extendSubscriptionService,
+    getAdminPaymentsService,
+    getAiUsageStatsService,
+    getSubscriptionMetricsService,
+    toggleUserStatusService,
 } = require("./service");
 
 // ======================================
@@ -394,6 +398,90 @@ const extendSubscription = async (
     }
 };
 
+// ======================================
+// Admin Payments Ledger
+// ======================================
+
+const getAdminPayments = async (req, res) => {
+  try {
+    const data = await getAdminPaymentsService(req.query);
+
+    return res.status(200).json({
+      success: true,
+      message: "Payments fetched successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// Admin AI Usage Stats
+// ======================================
+
+const getAiUsageStats = async (req, res) => {
+  try {
+    const data = await getAiUsageStatsService();
+
+    return res.status(200).json({
+      success: true,
+      message: "AI usage stats fetched successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// Subscription SaaS Metrics
+// ======================================
+
+const getSubscriptionMetrics = async (req, res) => {
+  try {
+    const data = await getSubscriptionMetricsService();
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscription metrics fetched successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// Toggle User Account Status
+// ======================================
+
+const toggleUserStatus = async (req, res) => {
+  try {
+    const data = await toggleUserStatusService(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: `User account ${data.accountStatus === 'suspended' ? 'suspended' : 'activated'} successfully.`,
+      data,
+    });
+  } catch (error) {
+    return res.status(error.message.includes('not found') ? 404 : 400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -409,4 +497,8 @@ module.exports = {
       getSubscriptionTimeline,
       cancelSubscription,
       extendSubscription,
+      getAdminPayments,
+      getAiUsageStats,
+      getSubscriptionMetrics,
+      toggleUserStatus,
 };
