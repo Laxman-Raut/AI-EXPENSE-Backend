@@ -17,6 +17,9 @@ const {
     getAiUsageStatsService,
     getSubscriptionMetricsService,
     toggleUserStatusService,
+    initiateUserPasswordResetService,
+    deletePlanByIdService,
+    updatePlanLimitsService,
 } = require("./service");
 
 // ======================================
@@ -482,6 +485,69 @@ const toggleUserStatus = async (req, res) => {
   }
 };
 
+// ======================================
+// Reset User Password
+// ======================================
+
+const resetUserPassword = async (req, res) => {
+  try {
+    const data = await initiateUserPasswordResetService(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: data.message,
+      data,
+    });
+  } catch (error) {
+    return res.status(error.message.includes('not found') ? 404 : 400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// Delete Plan
+// ======================================
+
+const deletePlan = async (req, res) => {
+  try {
+    const data = await deletePlanByIdService(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: data.message,
+      data,
+    });
+  } catch (error) {
+    return res.status(error.message.includes('not found') ? 404 : 400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ======================================
+// Update Plan Limits
+// ======================================
+
+const updatePlanLimits = async (req, res) => {
+  try {
+    const data = await updatePlanLimitsService(req.params.id, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "Plan limits updated successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(error.message.includes('not found') ? 404 : 400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -501,4 +567,7 @@ module.exports = {
       getAiUsageStats,
       getSubscriptionMetrics,
       toggleUserStatus,
+      resetUserPassword,
+      deletePlan,
+      updatePlanLimits,
 };

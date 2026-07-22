@@ -2,6 +2,9 @@ const User = require("../auth/model");
 const Payment = require("../payment/model");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
+const generateOTP = require("../auth/otp");
+const { sendOtpEmail } = require("../email");
+
 
 
 // Users
@@ -1318,6 +1321,74 @@ const getAiUsageStats = async () => {
     };
 };
 
+// ======================================
+// Initiate User Password Reset
+// ======================================
+
+const initiateUserPasswordReset = async (userId) => {
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new Error("User not found.");
+    }
+
+    const otp = generateOTP();
+
+    user.resetOtp = otp;
+    user.resetOtpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes validity
+
+    await user.save();
+
+    await sendOtpEmail(user.email, otp);
+
+    return {
+        success: true,
+        message: `Password reset OTP email sent to ${user.email} successfully.`,
+    };
+};
+
+// ======================================
+// Delete Plan
+// ======================================
+
+const deletePlanById = async (planId) => {
+    const plan = await Plan.findById(planId);
+
+    if (!plan) {
+        throw new Error("Plan not found.");
+    }
+
+    await Plan.findByIdAndDelete(planId);
+
+    return {
+        success: true,
+        message: "Plan deleted successfully.",
+    };
+};
+
+// ======================================
+// Update Plan Limits
+// ======================================
+
+const updatePlanLimits = async (planId, limitsData) => {
+    const plan = await Plan.findById(planId);
+
+    if (!plan) {
+        throw new Error("Plan not found.");
+    }
+
+    plan.limits = {
+        chatbotLimit: Number(limitsData.chatbotLimit ?? plan.limits?.chatbotLimit ?? 0),
+        receiptScannerLimit: Number(limitsData.receiptScannerLimit ?? plan.limits?.receiptScannerLimit ?? 0),
+        voiceScannerLimit: Number(limitsData.voiceScannerLimit ?? plan.limits?.voiceScannerLimit ?? 0),
+        gracePeriodDays: Number(limitsData.gracePeriodDays ?? plan.limits?.gracePeriodDays ?? 7),
+    };
+
+    await plan.save();
+
+    return plan;
+};
+
 module.exports = {
     getTotalUsers,
     getVerifiedUsers,
@@ -1353,4 +1424,7 @@ module.exports = {
     getAiUsageStats,
     getSubscriptionMetrics,
     toggleUserAccountStatus,
+    initiateUserPasswordReset,
+    deletePlanById,
+    updatePlanLimits,
 };

@@ -108,6 +108,25 @@ const planSchema = new mongoose.Schema(
             default: "crown",
         },
 
+        limits: {
+            chatbotLimit: {
+                type: Number,
+                default: 0,
+            },
+            receiptScannerLimit: {
+                type: Number,
+                default: 0,
+            },
+            voiceScannerLimit: {
+                type: Number,
+                default: 0,
+            },
+            gracePeriodDays: {
+                type: Number,
+                default: 7,
+            },
+        },
+
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

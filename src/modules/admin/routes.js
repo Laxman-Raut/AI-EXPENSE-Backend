@@ -21,6 +21,9 @@ const {
    getAiUsageStats,
    getSubscriptionMetrics,
    toggleUserStatus,
+   resetUserPassword,
+   deletePlan,
+   updatePlanLimits,
 } = require("./controller");
 
 
@@ -63,6 +66,14 @@ router.patch(
   toggleUserStatus
 );
 
+// Admin-initiated user password reset link dispatch
+router.post(
+  "/users/:id/reset-password",
+  authenticate,
+  requireAdmin,
+  resetUserPassword
+);
+
 // Plans
 // ======================================
 
@@ -99,6 +110,22 @@ router.get(
     authenticate,
     requireAdmin,
     getPlanById
+);
+
+// Delete pricing plan tier
+router.delete(
+    "/plans/:id",
+    authenticate,
+    requireAdmin,
+    deletePlan
+);
+
+// Configure plan limits & grace boundaries
+router.post(
+    "/plans/:id/limits",
+    authenticate,
+    requireAdmin,
+    updatePlanLimits
 );
 
 router.get(

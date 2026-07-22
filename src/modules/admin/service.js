@@ -33,6 +33,9 @@ const {
     getAiUsageStats,
     getSubscriptionMetrics,
     toggleUserAccountStatus,
+    initiateUserPasswordReset,
+    deletePlanById,
+    updatePlanLimits,
 } = require("./repository");
 
 // ======================================
@@ -350,6 +353,30 @@ const toggleUserStatusService = async (userId) => {
     return await toggleUserAccountStatus(userId);
 };
 
+// ======================================
+// Reset Password Service
+// ======================================
+
+const initiateUserPasswordResetService = async (userId) => {
+    return await initiateUserPasswordReset(userId);
+};
+
+// ======================================
+// Delete Plan Service
+// ======================================
+
+const deletePlanByIdService = async (planId) => {
+    return await deletePlanById(planId);
+};
+
+// ======================================
+// Update Plan Limits Service
+// ======================================
+
+const updatePlanLimitsService = async (planId, limitsData) => {
+    return await updatePlanLimits(planId, limitsData);
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -369,4 +396,7 @@ module.exports = {
     getAiUsageStatsService,
     getSubscriptionMetricsService,
     toggleUserStatusService,
+    initiateUserPasswordResetService,
+    deletePlanByIdService,
+    updatePlanLimitsService,
 };
