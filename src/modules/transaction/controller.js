@@ -1,10 +1,10 @@
 const {
   createTransaction,
   getTransactions,
-    getTransactionById,
-     updateTransaction,
-     deleteTransaction,
-
+  getTransactionById,
+  updateTransaction,
+  deleteTransaction,
+  syncTransactions,
 } = require("./service");
 
 // Add Transaction
@@ -101,10 +101,29 @@ const removeTransaction = async (req, res) => {
   }
 };
 
+const syncBulkTransactions = async (req, res) => {
+  try {
+    const transactions = req.body.transactions || [];
+    const results = await syncTransactions(req.user.userId, transactions);
+
+    res.status(200).json({
+      success: true,
+      message: "Transactions synced successfully",
+      data: results,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   addTransaction,
   getAllTransactions,
-    getTransaction,
-      editTransaction,
-        removeTransaction,
-};
+  getTransaction,
+  editTransaction,
+  removeTransaction,
+  syncBulkTransactions,
+};

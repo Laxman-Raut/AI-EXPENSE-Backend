@@ -168,10 +168,45 @@ const deleteTransaction = async (id, userId) => {
 };
 
 
+const syncTransactions = async (userId, transactions = []) => {
+  const results = [];
+  for (const item of transactions) {
+    const localId = item.localId || item.id;
+    const transactionData = {
+      user: userId,
+      type: item.type,
+      category: item.category,
+      description: item.description,
+      amount: item.amount,
+      paymentMethod: item.paymentMethod || "UPI",
+      transactionDate: item.transactionDate ? new Date(item.transactionDate) : new Date(),
+      note: item.note || "",
+    };
+
+    let doc;
+    if (item.cloudId && item.cloudId !== "null" && item.cloudId !== "undefined") {
+      doc = await Transaction.findOneAndUpdate(
+        { _id: item.cloudId, user: userId },
+        transactionData,
+        { new: true, upsert: true }
+      );
+    } else {
+      doc = await Transaction.create(transactionData);
+    }
+
+    results.push({
+      localId: localId,
+      cloudId: doc._id.toString(),
+    });
+  }
+  return results;
+};
+
 module.exports = {
   createTransaction,
   getTransactions,
-   getTransactionById,
-   updateTransaction,
-   deleteTransaction,
-};
+  getTransactionById,
+  updateTransaction,
+  deleteTransaction,
+  syncTransactions,
+};
