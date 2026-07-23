@@ -164,7 +164,7 @@ const getSubscriptionStatus = async (userId) => {
   await syncUserSubscription(user);
 
   return (
-    user.subscription.plan === "pro" &&
+    user.subscription.plan !== "free" &&
     user.subscription.status === "active"
   );
 };
