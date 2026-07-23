@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail } = require("../email");
 const generateOTP = require("./otp");
+const Plan = require("../plan/model");
+const SubscriptionHistory = require("../subscription-history/model");
 
 // Register User
 
@@ -26,6 +28,26 @@ const registerUser = async (userData) => {
     email: cleanEmail,
     password: hashedPassword,
   });
+
+  // Record initial free plan subscription history
+  try {
+    const freePlan = await Plan.findOne({ slug: "free", isCurrent: true }) || await Plan.findOne({ slug: "free" });
+    if (freePlan) {
+      await SubscriptionHistory.create({
+        userId: user._id,
+        planId: freePlan._id,
+        action: "activated",
+        provider: "system",
+        startDate: user.createdAt || new Date(),
+        endDate: null,
+        amount: 0,
+        currency: freePlan.currency || "INR",
+        note: "Initial user registration on Free plan.",
+      });
+    }
+  } catch (historyErr) {
+    console.warn("[Auth Service] Failed to create initial SubscriptionHistory:", historyErr.message);
+  }
 
   // Send welcome email asynchronously (non-blocking)
   sendWelcomeEmail(cleanEmail, fullName.trim()).catch((err) => {

@@ -88,11 +88,16 @@ const sendSubscriptionEmail = async (email, userName, planName, action) => {
   });
 };
 
-// Send Beautiful Subscription Invoice Email
+const generateInvoicePdfBuffer = require("./invoicePdfGenerator");
+
+// Send Beautiful Subscription Invoice Email with PDF Attachment
 const sendInvoiceEmail = async ({ userEmail, userName, payment, subscription }) => {
   try {
     const planNameFormatted = payment.plan === "pro_yearly" ? "Pro Yearly Plan" : "Pro Monthly Plan";
     const amountFormatted = payment.amount || (payment.plan === "pro_yearly" ? 1999 : 199);
+    const paidAtFormatted = payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const startDateFormatted = subscription?.startDate ? new Date(subscription.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const endDateFormatted = subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A";
 
     const htmlContent = invoiceTemplate({
       userName: userName || "Valued Customer",
@@ -102,18 +107,49 @@ const sendInvoiceEmail = async ({ userEmail, userName, payment, subscription }) 
       currency: payment.currency || "INR",
       orderId: payment.razorpayOrderId || "N/A",
       paymentId: payment.razorpayPaymentId || "N/A",
-      paidAt: payment.paidAt ? new Date(payment.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
-      startDate: subscription?.startDate ? new Date(subscription.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-      endDate: subscription?.endDate ? new Date(subscription.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A",
+      paidAt: paidAtFormatted,
+      startDate: startDateFormatted,
+      endDate: endDateFormatted,
     });
+
+    // Generate Invoice PDF Receipt Buffer
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePdfBuffer({
+        userName: userName || "Valued Customer",
+        userEmail,
+        planName: planNameFormatted,
+        amount: amountFormatted,
+        currency: payment.currency || "INR",
+        orderId: payment.razorpayOrderId || "N/A",
+        paymentId: payment.razorpayPaymentId || "N/A",
+        paidAt: paidAtFormatted,
+        startDate: startDateFormatted,
+        endDate: endDateFormatted,
+        provider: payment.provider ? payment.provider.toUpperCase() : "RAZORPAY",
+      });
+    } catch (pdfErr) {
+      console.error("⚠️ Failed to generate invoice PDF buffer:", pdfErr);
+    }
+
+    const attachments = [];
+    if (pdfBuffer) {
+      const fileName = `Invoice_${payment.razorpayOrderId || Date.now()}.pdf`;
+      attachments.push({
+        filename: fileName,
+        content: pdfBuffer,
+        contentType: "application/pdf",
+      });
+    }
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: userEmail,
       subject: `Payment Receipt & Invoice for ${planNameFormatted} - AI Expense Tracker`,
       html: htmlContent,
+      attachments,
     });
-    console.log(`✅ Subscription Invoice email sent successfully to ${userEmail}`);
+    console.log(`✅ Subscription Invoice email with PDF receipt sent successfully to ${userEmail}`);
   } catch (error) {
     console.error("❌ Failed to send Subscription Invoice email:", error);
   }

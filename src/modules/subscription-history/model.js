@@ -42,6 +42,7 @@ const subscriptionHistorySchema = new mongoose.Schema(
         "google_play",
         "manual",
         "system",
+        "none",
       ],
       default: "system",
     },

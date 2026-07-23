@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const Payment = require("./model");
 const razorpay = require("./razorpay");
 const User = require("../auth/model");
+const Plan = require("../plan/model");
+const SubscriptionHistory = require("../subscription-history/model");
 
 
 // Create Order
@@ -111,6 +113,25 @@ const verifyPayment = async ({
   };
 
   await user.save();
+
+  // Record subscription history entry
+  try {
+    const plan = await Plan.findOne({ slug: "pro", isCurrent: true }) || await Plan.findOne({ slug: "pro" });
+    await SubscriptionHistory.create({
+      userId: user._id,
+      planId: plan ? plan._id : null,
+      paymentId: payment._id,
+      action: "activated",
+      provider: "razorpay",
+      startDate: user.subscription.startDate,
+      endDate: user.subscription.endDate,
+      amount: payment.amount || 0,
+      currency: payment.currency || "INR",
+      note: `Subscription activated via Razorpay payment (${payment.plan}).`,
+    });
+  } catch (historyErr) {
+    console.error("[Payment Service] Failed to create SubscriptionHistory entry:", historyErr);
+  }
 
   // Send automatic SMTP invoice email to user
   try {
