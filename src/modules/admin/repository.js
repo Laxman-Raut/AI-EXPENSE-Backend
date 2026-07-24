@@ -1081,34 +1081,40 @@ const getSubscriptionMetrics = async () => {
     // LTV = ARPU × avg subscription months (minimum fallback 1 month)
     const ltv = parseFloat((arpu * Math.max(avgDurationMonths, 1)).toFixed(2));
 
-    // ── 30-Day Subscription Trend (Active + Churned per day) ──
-    const monthlyTrend = [];
+    // ── 30-Day Subscription Trend (Active + Churned per day) in parallel ──
+    const trendPromises = [];
 
     for (let i = 29; i >= 0; i--) {
         const dStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0);
         const dEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 23, 59, 59);
         const dayLabel = dStart.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-        // Active paid users who had an active subscription during this day
-        const activeCount = await User.countDocuments({
-            "subscription.plan": { $ne: "free" },
-            "subscription.status": "active",
-            "subscription.startDate": { $lte: dEnd },
-            "subscription.endDate": { $gte: dStart },
-        });
-
-        // Churned this specific day
-        const churnedCount = await SubscriptionHistory.countDocuments({
-            action: { $in: ["cancelled", "expired"] },
-            createdAt: { $gte: dStart, $lte: dEnd },
-        });
-
-        monthlyTrend.push({
-            name: dayLabel,
-            Active: activeCount,
-            Churned: churnedCount,
-        });
+        trendPromises.push((async () => {
+            const [activeCount, churnedCount] = await Promise.all([
+                User.countDocuments({
+                    "subscription.plan": { $ne: "free" },
+                    "subscription.status": "active",
+                    "subscription.startDate": { $lte: dEnd },
+                    "subscription.endDate": { $gte: dStart },
+                }),
+                SubscriptionHistory.countDocuments({
+                    action: { $in: ["cancelled", "expired"] },
+                    createdAt: { $gte: dStart, $lte: dEnd },
+                })
+            ]);
+            return {
+                name: dayLabel,
+                Active: activeCount,
+                Churned: churnedCount,
+                index: i,
+            };
+        })());
     }
+
+    const trendResults = await Promise.all(trendPromises);
+    const monthlyTrend = trendResults
+        .sort((a, b) => b.index - a.index)
+        .map(({ name, Active, Churned }) => ({ name, Active, Churned }));
 
     return {
         churnRate,
