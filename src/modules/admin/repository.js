@@ -977,7 +977,6 @@ const extendSubscription = async (
 
   return user.subscription;
 };
-
 // ======================================
 // Subscription SaaS Metrics
 // ======================================
@@ -998,7 +997,7 @@ const getSubscriptionMetrics = async () => {
     // ── Active subscribers at start of month ──────────────────
     // Use current premium users as denominator proxy
     const activePremiumUsers = await User.countDocuments({
-        "subscription.plan": "pro",
+        "subscription.plan": { $ne: "free" },
         "subscription.status": "active",
     });
 
@@ -1051,6 +1050,35 @@ const getSubscriptionMetrics = async () => {
 
     // LTV = ARPU × avg subscription months (minimum fallback 1 month)
     const ltv = parseFloat((arpu * Math.max(avgDurationMonths, 1)).toFixed(2));
+
+    // ── 6-Month Subscription Trend (Active + Churned per month) ──
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthlyTrend = [];
+
+    for (let i = 5; i >= 0; i--) {
+        const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mEnd   = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        const monthLabel = MONTH_NAMES[mStart.getMonth()];
+
+        // Active paid users who had an active subscription during this month
+        const activeCount = await User.countDocuments({
+            "subscription.plan": { $ne: "free" },
+            "subscription.status": "active",
+            "subscription.startDate": { $lte: mEnd },
+        });
+
+        // Churned this specific month
+        const churnedCount = await SubscriptionHistory.countDocuments({
+            action: { $in: ["cancelled", "expired"] },
+            createdAt: { $gte: mStart, $lte: mEnd },
+        });
+
+        monthlyTrend.push({
+            name: monthLabel,
+            Active: activeCount,
+            Churned: churnedCount,
+        });
+    }
 
     return {
         churnRate,
