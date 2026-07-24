@@ -36,6 +36,7 @@ const {
     initiateUserPasswordReset,
     deletePlanById,
     updatePlanLimits,
+    getAdvancedMetrics,
 } = require("./repository");
 
 // ======================================
@@ -65,6 +66,7 @@ const getDashboardService = async () => {
         userGrowthTrend,
         subscriptionDistribution,
         revenueByPlan,
+        advancedMetrics,
 
     ] = await Promise.all([
         getTotalUsers(),
@@ -88,6 +90,7 @@ const getDashboardService = async () => {
         getUserGrowthTrend(),
         getSubscriptionDistribution(),
         getRevenueByPlan(),
+        getAdvancedMetrics(),
     ]);
 
     return {
@@ -122,6 +125,8 @@ const getDashboardService = async () => {
             subscriptionDistribution,
              revenueByPlan,
         },
+
+        advancedMetrics,
 
         recentActivity: {
             latestUsers,
