@@ -1,6 +1,7 @@
 const User = require("./model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail } = require("../email");
 const generateOTP = require("./otp");
 const Plan = require("../plan/model");
@@ -108,6 +109,80 @@ const loginUser = async ({ email, password }) => {
   };
 };
 
+// Google / Firebase Login User
+
+const googleLoginUser = async ({ email, fullName, photoUrl, googleId }) => {
+  if (!email) {
+    throw new Error("Email is required for Google Authentication");
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  let user = await User.findOne({ email: cleanEmail });
+
+  if (!user) {
+    // Generate random secure password for Google users
+    const randomPassword = crypto.randomBytes(16).toString("hex");
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    user = await User.create({
+      fullName: (fullName || "Google User").trim(),
+      email: cleanEmail,
+      password: hashedPassword,
+      isVerified: true,
+      avatar: {
+        url: photoUrl || "",
+        publicId: "",
+      },
+    });
+
+    // Record initial free plan subscription history
+    try {
+      const freePlan = await Plan.findOne({ slug: "free", isCurrent: true }) || await Plan.findOne({ slug: "free" });
+      if (freePlan) {
+        await SubscriptionHistory.create({
+          userId: user._id,
+          planId: freePlan._id,
+          action: "activated",
+          provider: "system",
+          startDate: user.createdAt || new Date(),
+          endDate: null,
+          amount: 0,
+          currency: freePlan.currency || "INR",
+          note: "Initial Google user registration on Free plan.",
+        });
+      }
+    } catch (historyErr) {
+      console.warn("[Auth Service] Failed to create initial SubscriptionHistory for Google user:", historyErr.message);
+    }
+
+    // Send welcome email asynchronously
+    sendWelcomeEmail(cleanEmail, fullName || "Valued User").catch((err) => {
+      console.warn("[Email Service] Welcome email send warning:", err.message);
+    });
+  }
+
+  user.lastVisitedAt = new Date();
+  await user.save();
+
+  const token = jwt.sign(
+    {
+      userId: user._id,
+      email: user.email,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  const userObject = user.toObject();
+  delete userObject.password;
+
+  return {
+    user: userObject,
+    token,
+  };
+};
 
 // Get Profile
 
@@ -246,6 +321,7 @@ const handleSupportRequest = async (userId, { subject, message }) => {
 module.exports = {
   registerUser,
   loginUser,
+  googleLoginUser,
   getProfile,
   updateProfile,
   forgotPassword,

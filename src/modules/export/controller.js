@@ -4,7 +4,7 @@ const Transaction = require("../transaction/model");
 const jwt = require("jsonwebtoken");
 const dayjs = require("dayjs");
 
-// ─── THEME ────────────────────────────────────────────────────────────────
+// ─── THEME
 const COLORS = {
   primary: "4B8CFF",
   income: "00C48C",
@@ -30,7 +30,7 @@ const authenticateQuery = (req, res, next) => {
   }
 };
 
-// ─── EXCEL EXPORT (ExcelJS — actually styleable) ───────────────────────────
+// ─── EXCEL EXPORT (ExcelJS — actually styleable) ───────
 const buildXlsx = async (transactions, res) => {
   const wb = new ExcelJS.Workbook();
   wb.creator = "AI Expense Tracker";
@@ -112,7 +112,7 @@ const buildXlsx = async (transactions, res) => {
   res.end();
 };
 
-// ─── PDF EXPORT ─────────────────────────────────────────────────────────
+// ─── PDF EXPORT ────────
 const TABLE_COLS = [
   { key: "date", label: "Date", x: 40, width: 65 },
   { key: "description", label: "Description", x: 105, width: 115 },
@@ -264,7 +264,7 @@ const buildPdf = (transactions, res) => {
   doc.end();
 };
 
-// ─── ROUTE HANDLER ─────────────────────────────────────────────────────────
+// ─── ROUTE HANDLER ────
 // GET /api/export?format=xlsx|pdf&token=<jwt>
 const exportTransactions = async (req, res) => {
   try {

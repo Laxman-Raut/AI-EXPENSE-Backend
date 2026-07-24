@@ -1,6 +1,7 @@
 const { 
   registerUser,
   loginUser,
+  googleLoginUser,
   getProfile,
   updateProfile,
   forgotPassword: forgotPasswordService,
@@ -35,6 +36,23 @@ const login = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Login API working",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const googleLogin = async (req, res) => {
+  try {
+    const result = await googleLoginUser(req.body);
+
+    res.status(200).json({
+      success: true,
+      message: "Google login successful",
       data: result,
     });
   } catch (error) {
@@ -156,6 +174,7 @@ const support = async (req, res) => {
 module.exports = {
   register,
   login,
+  googleLogin,
   profile,
   update,
   forgotPassword,
