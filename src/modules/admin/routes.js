@@ -26,6 +26,15 @@ const {
    updatePlanLimits,
 } = require("./controller");
 
+const {
+  getReportsSummary,
+  getRevenueReportCtrl,
+  getUserReportCtrl,
+  getSubscriptionReportCtrl,
+  getPaymentReportCtrl,
+} = require("./reports.controller");
+
+
 
 const router = express.Router();
 
@@ -199,6 +208,46 @@ router.get(
   authenticate,
   requireAdmin,
   getAiUsageStats
+);
+
+// ======================================
+// Reports
+// ======================================
+
+// IMPORTANT: /reports/summary, /reports/revenue etc. MUST be declared before any :id routes
+router.get(
+  "/reports/summary",
+  authenticate,
+  requireAdmin,
+  getReportsSummary
+);
+
+router.get(
+  "/reports/revenue",
+  authenticate,
+  requireAdmin,
+  getRevenueReportCtrl
+);
+
+router.get(
+  "/reports/users",
+  authenticate,
+  requireAdmin,
+  getUserReportCtrl
+);
+
+router.get(
+  "/reports/subscriptions",
+  authenticate,
+  requireAdmin,
+  getSubscriptionReportCtrl
+);
+
+router.get(
+  "/reports/payments",
+  authenticate,
+  requireAdmin,
+  getPaymentReportCtrl
 );
 
 module.exports = router;

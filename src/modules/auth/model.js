@@ -126,6 +126,11 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+
+      note: {
+        type: String,
+        default: "",
+      },
     },
 
 
