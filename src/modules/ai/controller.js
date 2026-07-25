@@ -150,6 +150,14 @@ const scanReceiptController = async (req, res) => {
         const data = await scanReceipt(geminiBase64Data, mimetype, textData);
         console.log(`[AI Scanner] Gemini scan complete — result: ${JSON.stringify(data)}`);
 
+        // Increment user's receipt scanner usage count in DB
+        if (req.user && req.user.userId) {
+            const User = require("../auth/model");
+            await User.findByIdAndUpdate(req.user.userId, {
+                $inc: { "aiUsage.receiptScanner.used": 1 }
+            }).catch(err => console.error("Failed to increment receipt scanner usage:", err));
+        }
+
         res.status(200).json({
             success: true,
             receiptImage: secureUrl,

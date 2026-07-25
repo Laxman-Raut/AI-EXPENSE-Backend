@@ -1279,7 +1279,25 @@ const getAdminPayments = async ({
 // ======================================
 
 const getAiUsageStats = async () => {
-    // Total usage per feature across all users
+    const ChatMessage = require("../chatbot/model");
+
+    // Aggregate ChatMessage counts per user from ChatMessage collection
+    const chatbotUsageAgg = await ChatMessage.aggregate([
+        { $match: { role: "user" } },
+        { $group: { _id: "$user", count: { $sum: 1 } } }
+    ]);
+
+    const chatbotCountMap = {};
+    let totalChatbotFromMessages = 0;
+    chatbotUsageAgg.forEach(item => {
+        if (item._id) {
+            const strId = item._id.toString();
+            chatbotCountMap[strId] = item.count;
+            totalChatbotFromMessages += item.count;
+        }
+    });
+
+    // Total usage per feature across all users from User documents
     const totals = await User.aggregate([
         {
             $group: {
@@ -1309,50 +1327,49 @@ const getAiUsageStats = async () => {
         usersWithVoice: 0,
     };
 
+    const effectiveTotalChatbot = Math.max(totalsRow.totalChatbot, totalChatbotFromMessages);
+    const effectiveUsersWithChatbot = Math.max(totalsRow.usersWithChatbot, Object.keys(chatbotCountMap).length);
+
     const totalQueries =
-        totalsRow.totalChatbot +
+        effectiveTotalChatbot +
         totalsRow.totalReceiptScanner +
         totalsRow.totalVoiceScanner;
 
     // Distribution breakdown per feature
     const distribution = [
-        { feature: "AI Chatbot", key: "chatbot", count: totalsRow.totalChatbot },
+        { feature: "AI Chatbot", key: "chatbot", count: effectiveTotalChatbot },
         { feature: "Receipt Scanner", key: "receiptScanner", count: totalsRow.totalReceiptScanner },
         { feature: "Voice Scanner", key: "voiceScanner", count: totalsRow.totalVoiceScanner },
     ];
 
-    // Top 10 power users by total AI usage
-    const topUsers = await User.aggregate([
-        {
-            $addFields: {
-                totalAiUsed: {
-                    $add: [
-                        { $ifNull: ["$aiUsage.chatbot.used", 0] },
-                        { $ifNull: ["$aiUsage.receiptScanner.used", 0] },
-                        { $ifNull: ["$aiUsage.voiceScanner.used", 0] },
-                    ],
-                },
+    // Power users list (all users with any AI usage)
+    const allUsers = await User.find({}, 'fullName email avatar subscription aiUsage').lean();
+
+    const topUsers = allUsers.map(u => {
+        const strId = u._id ? u._id.toString() : '';
+        const chatbotUsed = Math.max(u.aiUsage?.chatbot?.used || 0, chatbotCountMap[strId] || 0);
+        const receiptUsed = u.aiUsage?.receiptScanner?.used || 0;
+        const voiceUsed = u.aiUsage?.voiceScanner?.used || 0;
+        const totalAiUsed = chatbotUsed + receiptUsed + voiceUsed;
+
+        return {
+            _id: u._id,
+            fullName: u.fullName || "User",
+            email: u.email || "",
+            avatar: u.avatar || "",
+            subscription: u.subscription || { plan: "free" },
+            aiUsage: {
+                chatbot: { used: chatbotUsed },
+                receiptScanner: { used: receiptUsed },
+                voiceScanner: { used: voiceUsed }
             },
-        },
-        { $match: { totalAiUsed: { $gt: 0 } } },
-        { $sort: { totalAiUsed: -1 } },
-        { $limit: 10 },
-        {
-            $project: {
-                fullName: 1,
-                email: 1,
-                avatar: 1,
-                "subscription.plan": 1,
-                "aiUsage.chatbot.used": 1,
-                "aiUsage.receiptScanner.used": 1,
-                "aiUsage.voiceScanner.used": 1,
-                totalAiUsed: 1,
-            },
-        },
-    ]);
+            totalAiUsed
+        };
+    }).filter(u => u.totalAiUsed > 0)
+      .sort((a, b) => b.totalAiUsed - a.totalAiUsed)
+      .slice(0, 10);
 
     // New chatbot messages registered in the last 30 days (daily trend)
-    const ChatMessage = require("../chatbot/model");
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 29);
     startDate.setHours(0, 0, 0, 0);
@@ -1373,10 +1390,10 @@ const getAiUsageStats = async () => {
     return {
         summary: {
             totalQueries,
-            totalChatbot: totalsRow.totalChatbot,
+            totalChatbot: effectiveTotalChatbot,
             totalReceiptScanner: totalsRow.totalReceiptScanner,
             totalVoiceScanner: totalsRow.totalVoiceScanner,
-            usersWithChatbot: totalsRow.usersWithChatbot,
+            usersWithChatbot: effectiveUsersWithChatbot,
             usersWithReceipt: totalsRow.usersWithReceipt,
             usersWithVoice: totalsRow.usersWithVoice,
         },

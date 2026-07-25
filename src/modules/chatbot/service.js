@@ -18,6 +18,12 @@ const sendMessage = async (userId, message) => {
     message,
   });
 
+  // Increment user's chatbot usage count in DB
+  const User = require("../auth/model");
+  await User.findByIdAndUpdate(userId, {
+    $inc: { "aiUsage.chatbot.used": 1 }
+  }).catch(err => console.error("Failed to increment chatbot usage:", err));
+
   // 3. Build rich financial context
   const finance = await buildFinanceContext(userId);
 

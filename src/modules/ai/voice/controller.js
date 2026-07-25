@@ -13,6 +13,14 @@ const voiceTransactionController = async (req, res) => {
 
     const data = await parseVoiceTransaction(text);
 
+    // Increment user's voice scanner usage count in DB
+    if (req.user && req.user.userId) {
+      const User = require("../../auth/model");
+      await User.findByIdAndUpdate(req.user.userId, {
+        $inc: { "aiUsage.voiceScanner.used": 1 }
+      }).catch(err => console.error("Failed to increment voice scanner usage:", err));
+    }
+
     res.status(200).json({
       success: true,
       data,
