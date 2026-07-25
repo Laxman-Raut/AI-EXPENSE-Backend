@@ -170,6 +170,26 @@ const support = async (req, res) => {
     });
   }
 };
+const authService = require("./service");
+
+const searchUsers = async (req, res, next) => {
+  try {
+    const users = await authService.searchUsers(
+      req.query.query,
+      req.user.id
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
 
 module.exports = {
   register,
@@ -181,4 +201,5 @@ module.exports = {
   verifyOtp,
   resetPassword,
   support,
+   searchUsers,
 };

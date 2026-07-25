@@ -1,5 +1,4 @@
 const express = require("express");
-
 const {
   register,
   login,
@@ -10,6 +9,7 @@ const {
   verifyOtp,
   resetPassword,
   support,
+  searchUsers,
 } = require("./controller");
 
 const {
@@ -32,5 +32,5 @@ router.post("/support", authenticate, support);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
-
+router.get("/search", authenticate, searchUsers);
 module.exports = router;

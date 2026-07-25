@@ -6,7 +6,7 @@ const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail } = require("../email")
 const generateOTP = require("./otp");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
-
+const authRepository = require("./repository");
 // Register User
 
 const registerUser = async (userData) => {
@@ -318,6 +318,11 @@ const handleSupportRequest = async (userId, { subject, message }) => {
   };
 };
 
+const searchUsers = async (query, currentUserId) => {
+  return authRepository.searchUsers(query, currentUserId);
+};
+
+
 module.exports = {
   registerUser,
   loginUser,
@@ -327,5 +332,6 @@ module.exports = {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  searchUsers,
   handleSupportRequest,
 };
