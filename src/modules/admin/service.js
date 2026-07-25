@@ -338,8 +338,8 @@ const getAdminPaymentsService = async (query) => {
 // Admin AI Usage Stats
 // ======================================
 
-const getAiUsageStatsService = async () => {
-    return await getAiUsageStats();
+const getAiUsageStatsService = async (query) => {
+    return await getAiUsageStats(query);
 };
 
 // ======================================
