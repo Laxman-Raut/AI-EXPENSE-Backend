@@ -18,7 +18,7 @@ const subscriptionRoutes = require("./src/modules/subscription/routes");
 const paymentRoutes = require("./src/modules/payment/routes");
 const planRoutes = require("./src/modules/plan/routes");
 const adminRoutes = require("./src/modules/admin/routes");
-
+const friendRoutes = require("./src/modules/friends/model");
 const app = express();
 
 // Middleware
@@ -51,6 +51,7 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/v1/plans", planRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/friends", friendRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({
