@@ -9,20 +9,15 @@ const SubscriptionHistory = require("../subscription-history/model");
 // Create Order
 
 const createOrder = async (userId, plan) => {
-  let amount = 0; // Amount in standard Rupees
-
-  switch (plan) {
-    case "pro_monthly":
-      amount = 199; // ₹199
-      break;
-
-    case "pro_yearly":
-      amount = 1999; // ₹1999
-      break;
-
-    default:
-      throw new Error("Invalid subscription plan");
+  // Dynamically lookup plan from database (created/managed by super admin)
+  const planDoc = await Plan.findOne({ slug: plan, isCurrent: true, status: "active" });
+  if (!planDoc) {
+    throw new Error("Invalid or inactive subscription plan");
   }
+  if (planDoc.price <= 0) {
+    throw new Error("Cannot create a payment order for a free plan");
+  }
+  const amount = planDoc.price;
 
   // Razorpay API expects amount in subunit/paise (Rupees * 100)
   const order = await razorpay.orders.create({
@@ -88,12 +83,15 @@ const verifyPayment = async ({
     throw new Error("User not found");
   }
 
+  // Dynamically compute subscription end date from Plan's durationDays
+  const planDoc = await Plan.findOne({ slug: payment.plan, isCurrent: true }) || await Plan.findOne({ slug: payment.plan });
   let endDate = new Date();
-
-  if (payment.plan === "pro_monthly") {
-    endDate.setMonth(endDate.getMonth() + 1);
-  } else if (payment.plan === "pro_yearly") {
+  if (planDoc && planDoc.durationDays) {
+    endDate.setDate(endDate.getDate() + planDoc.durationDays);
+  } else if (payment.plan.includes('yearly')) {
     endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
   }
 
   payment.status = "success";
@@ -104,7 +102,7 @@ const verifyPayment = async ({
   await payment.save();
 
   user.subscription = {
-    plan: "pro",
+    plan: planDoc ? planDoc.slug : payment.plan,
     status: "active",
     provider: "razorpay",
     startDate: new Date(),
@@ -116,10 +114,10 @@ const verifyPayment = async ({
 
   // Record subscription history entry
   try {
-    const plan = await Plan.findOne({ slug: "pro", isCurrent: true }) || await Plan.findOne({ slug: "pro" });
+    const historyPlan = planDoc || await Plan.findOne({ slug: payment.plan, isCurrent: true }) || await Plan.findOne({ slug: payment.plan });
     await SubscriptionHistory.create({
       userId: user._id,
-      planId: plan ? plan._id : null,
+      planId: historyPlan ? historyPlan._id : null,
       paymentId: payment._id,
       action: "activated",
       provider: "razorpay",

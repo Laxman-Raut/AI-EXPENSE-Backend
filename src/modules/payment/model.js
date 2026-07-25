@@ -20,7 +20,6 @@ const paymentSchema = new mongoose.Schema(
 
     plan: {
       type: String,
-      enum: ["free", "basic", "pro_monthly", "pro_yearly", "enterprise"],
       required: true,
     },
 
