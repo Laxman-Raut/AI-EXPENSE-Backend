@@ -1,4 +1,5 @@
 const Friend = require("./model");
+const User = require("../auth/model");
 
 const createRequest = (data) => {
   return Friend.create(data);
@@ -8,10 +9,10 @@ const findById = (id) => {
   return Friend.findById(id);
 };
 
-const findPendingRequest = (requester, recipient) => {
+const findPendingRequest = (sender, receiver) => {
   return Friend.findOne({
-    requester,
-    recipient,
+    sender,
+    receiver,
     status: "pending",
   });
 };
@@ -19,8 +20,8 @@ const findPendingRequest = (requester, recipient) => {
 const findExistingFriendship = (user1, user2) => {
   return Friend.findOne({
     $or: [
-      { requester: user1, recipient: user2 },
-      { requester: user2, recipient: user1 },
+      { sender: user1, receiver: user2 },
+      { sender: user2, receiver: user1 },
     ],
   });
 };
@@ -41,33 +42,48 @@ const rejectRequest = (requestId) => {
   );
 };
 
-const getPendingRequests = (recipient) => {
+const getPendingRequests = (receiver) => {
   return Friend.find({
-    recipient,
+    receiver,
     status: "pending",
-  }).populate("requester", "fullName username avatar");
+  }).populate("sender", "fullName username avatar");
 };
 
 const getFriends = (userId) => {
   return Friend.find({
     $or: [
-      { requester: userId },
-      { recipient: userId },
+      { sender: userId },
+      { receiver: userId },
     ],
     status: "accepted",
   })
-    .populate("requester", "fullName username avatar")
-    .populate("recipient", "fullName username avatar");
+    .populate("sender", "fullName username avatar")
+    .populate("receiver", "fullName username avatar");
 };
 
 const removeFriend = (user1, user2) => {
   return Friend.findOneAndDelete({
     $or: [
-      { requester: user1, recipient: user2 },
-      { requester: user2, recipient: user1 },
+      { sender: user1, receiver: user2 },
+      { sender: user2, receiver: user1 },
     ],
     status: "accepted",
   });
+};
+
+const searchUsers = (query, currentUserId) => {
+  if (!query || !query.trim()) return [];
+  const searchRegex = new RegExp(query.trim(), "i");
+  return User.find({
+    _id: { $ne: currentUserId },
+    $or: [
+      { fullName: searchRegex },
+      { username: searchRegex },
+      { email: searchRegex },
+    ],
+  })
+    .select("fullName username email avatar")
+    .limit(20);
 };
 
 module.exports = {
@@ -80,4 +96,5 @@ module.exports = {
   getPendingRequests,
   getFriends,
   removeFriend,
+  searchUsers,
 };

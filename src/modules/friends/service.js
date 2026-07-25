@@ -1,5 +1,5 @@
 const friendRepository = require("./repository");
-const User = require("../users/model");
+const User = require("../auth/model");
 
 const sendFriendRequest = async (requesterId, recipientId) => {
   // Can't send request to yourself
@@ -34,8 +34,8 @@ const sendFriendRequest = async (requesterId, recipientId) => {
   }
 
   return friendRepository.createRequest({
-    requester: requesterId,
-    recipient: recipientId,
+    sender: requesterId,
+    receiver: recipientId,
   });
 };
 
@@ -79,6 +79,10 @@ const removeFriend = async (userId, friendId) => {
   return friendRepository.removeFriend(userId, friendId);
 };
 
+const searchUsers = async (query, currentUserId) => {
+  return friendRepository.searchUsers(query, currentUserId);
+};
+
 module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
@@ -86,4 +90,5 @@ module.exports = {
   getPendingRequests,
   getFriends,
   removeFriend,
+  searchUsers,
 };

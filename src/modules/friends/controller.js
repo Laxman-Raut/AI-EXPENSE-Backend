@@ -93,6 +93,21 @@ const removeFriend = async (req, res, next) => {
   }
 };
 
+const searchUsers = async (req, res, next) => {
+  try {
+    const { q, query } = req.query;
+    const searchTerm = q || query || "";
+    const users = await friendService.searchUsers(searchTerm, req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   sendFriendRequest,
   acceptFriendRequest,
@@ -100,4 +115,5 @@ module.exports = {
   getPendingRequests,
   getFriends,
   removeFriend,
+  searchUsers,
 };

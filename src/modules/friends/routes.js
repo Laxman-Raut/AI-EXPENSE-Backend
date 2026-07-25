@@ -2,18 +2,17 @@ const express = require("express");
 const router = express.Router();
 
 const friendController = require("./controller");
-const validate = require("../../middleware/validator");
 const {
-  sendFriendRequestSchema,
-  respondFriendRequestSchema,
+  validateSendFriendRequest,
+  validateRespondFriendRequest,
 } = require("./validation");
-const auth = require("../../middleware/auth");
+const auth = require("../auth/auth.middleware");
 
 // Send Friend Request
 router.post(
   "/request",
   auth,
-  validate(sendFriendRequestSchema),
+  validateSendFriendRequest,
   friendController.sendFriendRequest
 );
 
@@ -21,7 +20,7 @@ router.post(
 router.post(
   "/accept",
   auth,
-  validate(respondFriendRequestSchema),
+  validateRespondFriendRequest,
   friendController.acceptFriendRequest
 );
 
@@ -29,7 +28,7 @@ router.post(
 router.post(
   "/reject",
   auth,
-  validate(respondFriendRequestSchema),
+  validateRespondFriendRequest,
   friendController.rejectFriendRequest
 );
 
@@ -38,6 +37,19 @@ router.get(
   "/requests",
   auth,
   friendController.getPendingRequests
+);
+
+// Search Users
+router.get(
+  "/search",
+  auth,
+  friendController.searchUsers
+);
+
+router.get(
+  "/search-users",
+  auth,
+  friendController.searchUsers
 );
 
 // Get Friends List
