@@ -50,7 +50,7 @@ const acceptFriendRequest = async (requestId) => {
     throw new Error("This request has already been processed.");
   }
 
-  return friendRepository.updateRequestStatus(requestId, "accepted");
+  return friendRepository.acceptRequest(requestId);
 };
 
 const rejectFriendRequest = async (requestId) => {
@@ -64,7 +64,7 @@ const rejectFriendRequest = async (requestId) => {
     throw new Error("This request has already been processed.");
   }
 
-  return friendRepository.updateRequestStatus(requestId, "rejected");
+  return friendRepository.rejectRequest(requestId);
 };
 
 const getPendingRequests = async (userId) => {

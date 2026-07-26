@@ -2,7 +2,7 @@ const friendService = require("./service");
 
 const sendFriendRequest = async (req, res, next) => {
   try {
-    const requesterId = req.user.id;
+    const requesterId = req.user.userId;
     const { recipientId } = req.body;
 
     const request = await friendService.sendFriendRequest(
@@ -54,7 +54,7 @@ const rejectFriendRequest = async (req, res, next) => {
 
 const getPendingRequests = async (req, res, next) => {
   try {
-    const requests = await friendService.getPendingRequests(req.user.id);
+    const requests = await friendService.getPendingRequests(req.user.userId);
 
     res.status(200).json({
       success: true,
@@ -67,7 +67,7 @@ const getPendingRequests = async (req, res, next) => {
 
 const getFriends = async (req, res, next) => {
   try {
-    const friends = await friendService.getFriends(req.user.id);
+    const friends = await friendService.getFriends(req.user.userId);
 
     res.status(200).json({
       success: true,
@@ -82,7 +82,7 @@ const removeFriend = async (req, res, next) => {
   try {
     const { friendId } = req.params;
 
-    await friendService.removeFriend(req.user.id, friendId);
+    await friendService.removeFriend(req.user.userId, friendId);
 
     res.status(200).json({
       success: true,
@@ -97,7 +97,7 @@ const searchUsers = async (req, res, next) => {
   try {
     const { q, query } = req.query;
     const searchTerm = q || query || "";
-    const users = await friendService.searchUsers(searchTerm, req.user.id);
+    const users = await friendService.searchUsers(searchTerm, req.user.userId);
 
     res.status(200).json({
       success: true,
