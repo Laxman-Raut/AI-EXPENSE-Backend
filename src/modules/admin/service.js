@@ -39,6 +39,9 @@ const {
     getAdvancedMetrics,
     getSystemSettingsRepo,
     updateSystemSettingsRepo,
+    getSegmentAudienceCountRepo,
+    sendAdminBroadcastRepo,
+    getAdminCampaignsRepo,
 } = require("./repository");
 
 // ======================================
@@ -392,6 +395,18 @@ const updateSystemSettingsService = async (updateData) => {
     return await updateSystemSettingsRepo(updateData);
 };
 
+const getSegmentAudienceCountService = async (segment, specificEmail) => {
+    return await getSegmentAudienceCountRepo(segment, specificEmail);
+};
+
+const sendAdminBroadcastService = async (payload, adminId) => {
+    return await sendAdminBroadcastRepo({ ...payload, adminId });
+};
+
+const getAdminCampaignsService = async () => {
+    return await getAdminCampaignsRepo();
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -416,4 +431,7 @@ module.exports = {
     updatePlanLimitsService,
     getSystemSettingsService,
     updateSystemSettingsService,
+    getSegmentAudienceCountService,
+    sendAdminBroadcastService,
+    getAdminCampaignsService,
 };

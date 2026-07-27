@@ -22,6 +22,9 @@ const {
     updatePlanLimitsService,
     getSystemSettingsService,
     updateSystemSettingsService,
+    getSegmentAudienceCountService,
+    sendAdminBroadcastService,
+    getAdminCampaignsService,
 } = require("./service");
 
 // ======================================
@@ -581,6 +584,70 @@ const updateSystemSettingsCtrl = async (req, res) => {
   }
 };
 
+const getSegmentAudienceCountCtrl = async (req, res) => {
+  try {
+    const { segment = 'all', email = '' } = req.query;
+    const count = await getSegmentAudienceCountService(segment, email);
+    return res.status(200).json({
+      success: true,
+      data: { audienceCount: count }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const sendAdminBroadcastCtrl = async (req, res) => {
+  try {
+    const { title, body, type, category, targetSegment, segment, specificEmail, email } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and body are required for campaign broadcast."
+      });
+    }
+
+    const resolvedType = type || category || "system";
+    const resolvedSegment = targetSegment || segment || "all";
+    const resolvedEmail = specificEmail || email || "";
+
+    const result = await sendAdminBroadcastService(
+      { title, body, type: resolvedType, targetSegment: resolvedSegment, specificEmail: resolvedEmail },
+      req.user.userId
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: `Notification broadcast sent successfully to ${result.recipientCount} user(s).`,
+      data: result
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const getAdminCampaignsCtrl = async (req, res) => {
+  try {
+    const campaigns = await getAdminCampaignsService();
+    return res.status(200).json({
+      success: true,
+      data: campaigns
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -605,4 +672,7 @@ module.exports = {
       updatePlanLimits,
       getSystemSettingsCtrl,
       updateSystemSettingsCtrl,
+      getSegmentAudienceCountCtrl,
+      sendAdminBroadcastCtrl,
+      getAdminCampaignsCtrl,
 };

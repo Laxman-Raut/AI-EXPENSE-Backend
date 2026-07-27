@@ -1,5 +1,7 @@
 const SystemSettings = require("./systemSettings.model");
 const User = require("../auth/model");
+const Notification = require("../notification/model");
+const AdminNotificationCampaign = require("../notification/adminNotificationCampaign.model");
 const Payment = require("../payment/model");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
@@ -1676,6 +1678,86 @@ const updateSystemSettingsRepo = async (updateData) => {
     return doc;
 };
 
+const buildSegmentQuery = (segment, specificEmail) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    switch (segment) {
+        case 'free':
+            return {
+                $or: [
+                    { "subscription.plan": { $exists: false } },
+                    { "subscription.plan": "free" },
+                    { "subscription.status": { $ne: "active" } }
+                ]
+            };
+        case 'pro':
+            return { "subscription.plan": "pro", "subscription.status": "active" };
+        case 'expired':
+            return { "subscription.status": { $in: ["expired", "cancelled"] } };
+        case 'inactive':
+            return {
+                $or: [
+                    { lastVisitedAt: { $lt: thirtyDaysAgo } },
+                    { updatedAt: { $lt: thirtyDaysAgo } }
+                ]
+            };
+        case 'specific':
+            return { email: (specificEmail || "").toLowerCase().trim() };
+        case 'all':
+        default:
+            return {};
+    }
+};
+
+const getSegmentAudienceCountRepo = async (segment, specificEmail) => {
+    const query = buildSegmentQuery(segment, specificEmail);
+    return await User.countDocuments(query);
+};
+
+const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegment = "all", specificEmail = "", adminId }) => {
+    const query = buildSegmentQuery(targetSegment, specificEmail);
+    const targetUsers = await User.find(query, "_id email fullName");
+
+    if (targetUsers.length === 0) {
+        throw new Error("No users found matching the selected target segment.");
+    }
+
+    // Insert Notification records for all target users
+    const notificationsToInsert = targetUsers.map(u => ({
+        user: u._id,
+        title,
+        body,
+        type: type || "system",
+        read: false,
+        data: { segment: targetSegment, sentByAdmin: true }
+    }));
+
+    await Notification.insertMany(notificationsToInsert);
+
+    // Save Campaign Log
+    const campaign = await AdminNotificationCampaign.create({
+        title,
+        body,
+        type: type || "system",
+        targetSegment,
+        specificEmail,
+        recipientCount: targetUsers.length,
+        sentBy: adminId
+    });
+
+    return {
+        recipientCount: targetUsers.length,
+        campaign
+    };
+};
+
+const getAdminCampaignsRepo = async () => {
+    return await AdminNotificationCampaign.find()
+        .populate("sentBy", "fullName email")
+        .sort({ createdAt: -1 });
+};
+
 module.exports = {
     getTotalUsers,
     getVerifiedUsers,
@@ -1717,4 +1799,7 @@ module.exports = {
     getAdvancedMetrics,
     getSystemSettingsRepo,
     updateSystemSettingsRepo,
+    getSegmentAudienceCountRepo,
+    sendAdminBroadcastRepo,
+    getAdminCampaignsRepo,
 };

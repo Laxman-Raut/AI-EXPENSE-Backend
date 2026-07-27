@@ -26,6 +26,9 @@ const {
    updatePlanLimits,
    getSystemSettingsCtrl,
    updateSystemSettingsCtrl,
+   getSegmentAudienceCountCtrl,
+   sendAdminBroadcastCtrl,
+   getAdminCampaignsCtrl,
 } = require("./controller");
 
 const {
@@ -264,6 +267,27 @@ router.get(
   authenticate,
   requireAdmin,
   getPaymentReportCtrl
+);
+
+router.get(
+  "/notifications/audience-count",
+  authenticate,
+  requireAdmin,
+  getSegmentAudienceCountCtrl
+);
+
+router.post(
+  "/notifications/broadcast",
+  authenticate,
+  requireAdmin,
+  sendAdminBroadcastCtrl
+);
+
+router.get(
+  "/notifications/campaigns",
+  authenticate,
+  requireAdmin,
+  getAdminCampaignsCtrl
 );
 
 module.exports = router;
