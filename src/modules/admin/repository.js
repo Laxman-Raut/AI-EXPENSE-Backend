@@ -463,48 +463,41 @@ const createPlan = async (planData) => {
 // ======================================
 // Update Plan (Versioning)
 // ======================================
+// Update Plan
+// ======================================
 
 const updatePlan = async (planId, updateData, adminId) => {
-  const currentPlan = await Plan.findById(planId);
+  const plan = await Plan.findById(planId);
 
-  if (!currentPlan) {
+  if (!plan) {
     throw new Error("Plan not found.");
   }
 
-  if (!currentPlan.isCurrent) {
-    throw new Error("Only current plan can be updated.");
+  if (updateData.name !== undefined) plan.name = updateData.name.trim();
+  if (updateData.slug !== undefined) plan.slug = updateData.slug.toLowerCase().trim();
+  if (updateData.price !== undefined) plan.price = Number(updateData.price);
+  if (updateData.description !== undefined) plan.description = updateData.description.trim();
+  if (updateData.billingCycle !== undefined) plan.billingCycle = updateData.billingCycle;
+  if (updateData.durationDays !== undefined) plan.durationDays = Number(updateData.durationDays);
+  if (updateData.status !== undefined) plan.status = updateData.status;
+  if (updateData.visibility !== undefined) plan.visibility = updateData.visibility;
+  if (updateData.icon !== undefined) plan.icon = updateData.icon;
+  if (updateData.color !== undefined) plan.color = updateData.color;
+  if (updateData.isPopular !== undefined) plan.isPopular = Boolean(updateData.isPopular);
+  if (updateData.features !== undefined) {
+    plan.features = Array.isArray(updateData.features) ? updateData.features : plan.features;
+  }
+  if (updateData.limits !== undefined) {
+    plan.limits = {
+      ...plan.limits,
+      ...updateData.limits
+    };
   }
 
-  // Old version inactive
-  currentPlan.isCurrent = false;
-  await currentPlan.save();
+  plan.updatedBy = adminId;
+  await plan.save();
 
-  // Create new version
-  const newPlan = await Plan.create({
-    ...currentPlan.toObject(),
-
-    _id: undefined,
-
-    parentPlanId: currentPlan.parentPlanId || currentPlan._id,
-
-    replacedBy: null,
-
-    version: currentPlan.version + 1,
-
-    isCurrent: true,
-
-    effectiveFrom: new Date(),
-
-    updatedBy: adminId,
-
-    ...updateData,
-  });
-
-  // Link old → new
-  currentPlan.replacedBy = newPlan._id;
-  await currentPlan.save();
-
-  return newPlan;
+  return plan;
 };
 
 
