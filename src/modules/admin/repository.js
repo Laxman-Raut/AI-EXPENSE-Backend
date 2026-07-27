@@ -452,6 +452,7 @@ const createPlan = async (planData) => {
 
   const plan = await Plan.create({
     ...planData,
+    status: planData.status || "active",
     version: 1,
     isCurrent: true,
   });

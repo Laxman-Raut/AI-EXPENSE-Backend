@@ -9,11 +9,31 @@ const SubscriptionHistory = require("../subscription-history/model");
 // Create Order
 
 const createOrder = async (userId, plan) => {
+  const normalizedSlug = (plan || "").toString().toLowerCase().trim();
+
   // Dynamically lookup plan from database (created/managed by super admin)
-  const planDoc = await Plan.findOne({ slug: plan, isCurrent: true, status: "active" });
+  let planDoc = await Plan.findOne({
+    $or: [
+      { slug: normalizedSlug, isCurrent: true },
+      { slug: normalizedSlug },
+      ...(normalizedSlug.length === 24 ? [{ _id: normalizedSlug }] : [])
+    ]
+  });
+
   if (!planDoc) {
-    throw new Error("Invalid or inactive subscription plan");
+    throw new Error(`Invalid or non-existent subscription plan '${plan}'`);
   }
+
+  // If the plan is in draft status, auto-activate it so user payment succeeds
+  if (planDoc.status === "draft") {
+    planDoc.status = "active";
+    await planDoc.save();
+  }
+
+  if (planDoc.status === "inactive") {
+    throw new Error("This subscription plan is currently inactive");
+  }
+
   if (planDoc.price <= 0) {
     throw new Error("Cannot create a payment order for a free plan");
   }
@@ -31,7 +51,7 @@ const createOrder = async (userId, plan) => {
     userId,
     amount,
     currency: "INR",
-    plan,
+    plan: planDoc.slug,
     provider: "razorpay",
     status: "pending",
     razorpayOrderId: order.id,
@@ -84,7 +104,8 @@ const verifyPayment = async ({
   }
 
   // Dynamically compute subscription end date from Plan's durationDays
-  const planDoc = await Plan.findOne({ slug: payment.plan, isCurrent: true }) || await Plan.findOne({ slug: payment.plan });
+  const normalizedPlanSlug = (payment.plan || "").toString().toLowerCase().trim();
+  const planDoc = await Plan.findOne({ slug: normalizedPlanSlug, isCurrent: true }) || await Plan.findOne({ slug: normalizedPlanSlug });
   let endDate = new Date();
   if (planDoc && planDoc.durationDays) {
     endDate.setDate(endDate.getDate() + planDoc.durationDays);
