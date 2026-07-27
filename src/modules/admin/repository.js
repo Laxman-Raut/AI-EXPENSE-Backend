@@ -1629,11 +1629,6 @@ const getAdvancedMetrics = async () => {
     };
 };
 
-const getAdvancedMetrics = async () => {
-    // Advanced metrics logic here (mocked for brevity or as originally intended)
-    return {};
-};
-
 const getSystemSettingsRepo = async () => {
     let settings = await SystemSettings.findOne();
     if (!settings) {
