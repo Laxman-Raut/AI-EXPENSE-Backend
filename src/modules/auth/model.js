@@ -35,6 +35,11 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    upiId: {
+  type: String,
+  trim: true,
+  default: "",
+},
 
     role: {
       type: String,
