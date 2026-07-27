@@ -20,6 +20,7 @@ const planRoutes = require("./src/modules/plan/routes");
 const adminRoutes = require("./src/modules/admin/routes");
 const friendRoutes = require("./src/modules/friends/routes");
 const groupRoutes = require("./src/modules/groups/routes");
+const splitRequestRoutes = require("./src/modules/splitRequests/routes");
 const app = express();
 
 // Middleware
@@ -55,6 +56,7 @@ app.use("/api/v1/admin", adminRoutes);
 app.use("/api/friends", friendRoutes);
 app.use("/api/users", friendRoutes);
 app.use("/api/groups", groupRoutes);
+app.use("/api/split-requests", splitRequestRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({

@@ -5,6 +5,7 @@ const connectDB = require("./src/config/db");
 const { startReminderScheduler } = require("./src/modules/notification/scheduler");
 const { startRecurringScheduler } = require("./src/modules/recurringTransaction/scheduler");
 const { startSubscriptionScheduler } = require("./src/modules/subscription/scheduler");
+const { startSplitOverdueScheduler } = require("./src/modules/splitRequests/splitOverdueScheduler");
 
 const PORT = process.env.PORT || 5000;
 
@@ -25,6 +26,9 @@ const startServer = async () => {
 
     // Start subscription auto-expiry and expiring-soon warning scheduler
     startSubscriptionScheduler();
+
+    // Start split expense overdue auto-settlement scheduler
+    startSplitOverdueScheduler();
   } catch (error) {
     console.error("Server initialization error:", error);
   }
