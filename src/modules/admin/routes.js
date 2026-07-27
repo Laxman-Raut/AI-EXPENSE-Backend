@@ -29,6 +29,10 @@ const {
    getSegmentAudienceCountCtrl,
    sendAdminBroadcastCtrl,
    getAdminCampaignsCtrl,
+   getAdminSystemNotificationsCtrl,
+   markAdminNotificationReadCtrl,
+   deleteAdminNotificationCtrl,
+   clearAdminNotificationsCtrl,
 } = require("./controller");
 
 const {
@@ -288,6 +292,34 @@ router.get(
   authenticate,
   requireAdmin,
   getAdminCampaignsCtrl
+);
+
+router.get(
+  "/notifications",
+  authenticate,
+  requireAdmin,
+  getAdminSystemNotificationsCtrl
+);
+
+router.patch(
+  "/notifications/:id/read",
+  authenticate,
+  requireAdmin,
+  markAdminNotificationReadCtrl
+);
+
+router.delete(
+  "/notifications/:id",
+  authenticate,
+  requireAdmin,
+  deleteAdminNotificationCtrl
+);
+
+router.delete(
+  "/notifications",
+  authenticate,
+  requireAdmin,
+  clearAdminNotificationsCtrl
 );
 
 module.exports = router;

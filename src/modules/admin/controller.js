@@ -637,13 +637,69 @@ const getAdminCampaignsCtrl = async (req, res) => {
   try {
     const campaigns = await getAdminCampaignsService();
     return res.status(200).json({
+const { 
+  getUserNotifications, 
+  markAsRead: markNotifRead, 
+  deleteNotification: deleteNotif, 
+  clearAllNotifications: clearNotifs 
+} = require("../notification/service");
+
+const getAdminSystemNotificationsCtrl = async (req, res) => {
+  try {
+    const notifications = await getUserNotifications(req.user.userId);
+    return res.status(200).json({
       success: true,
-      data: campaigns
+      data: notifications,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
+    });
+  }
+};
+
+const markAdminNotificationReadCtrl = async (req, res) => {
+  try {
+    const notification = await markNotifRead(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: notification,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const deleteAdminNotificationCtrl = async (req, res) => {
+  try {
+    await deleteNotif(req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: "Notification deleted successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const clearAdminNotificationsCtrl = async (req, res) => {
+  try {
+    await clearNotifs(req.user.userId);
+    return res.status(200).json({
+      success: true,
+      message: "All notifications cleared.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
@@ -675,4 +731,8 @@ module.exports = {
       getSegmentAudienceCountCtrl,
       sendAdminBroadcastCtrl,
       getAdminCampaignsCtrl,
+      getAdminSystemNotificationsCtrl,
+      markAdminNotificationReadCtrl,
+      deleteAdminNotificationCtrl,
+      clearAdminNotificationsCtrl,
 };
