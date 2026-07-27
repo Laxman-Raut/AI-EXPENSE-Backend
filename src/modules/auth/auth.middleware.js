@@ -16,6 +16,11 @@ const authenticate = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.user = decoded;
+    // Normalize user ID property across all controllers (support req.user.id, req.user.userId, req.user._id)
+    const normalizedId = decoded.userId || decoded.id || decoded._id;
+    req.user.id = normalizedId;
+    req.user.userId = normalizedId;
+    req.user._id = normalizedId;
 
     next();
   } catch (error) {

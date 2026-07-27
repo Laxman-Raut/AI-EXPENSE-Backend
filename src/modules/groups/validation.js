@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// Create Group Validation (Manual JS validation - no external Joi package needed)
+// Create Group Validation (Plain JS validation)
 const validateCreateGroup = (req, res, next) => {
   const { name, description } = req.body || {};
 

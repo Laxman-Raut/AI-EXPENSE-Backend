@@ -1,9 +1,12 @@
 const groupService = require("./service");
 
+const getUserId = (req) => req.user?.userId || req.user?.id || req.user?._id;
+
 // Create Group
 const createGroup = async (req, res, next) => {
   try {
-    const group = await groupService.createGroup(req.body, req.user.id);
+    const userId = getUserId(req);
+    const group = await groupService.createGroup(req.body, userId);
 
     return res.status(201).json({
       success: true,
@@ -18,7 +21,8 @@ const createGroup = async (req, res, next) => {
 // Get My Groups
 const getGroups = async (req, res, next) => {
   try {
-    const groups = await groupService.getGroups(req.user.id);
+    const userId = getUserId(req);
+    const groups = await groupService.getGroups(userId);
 
     return res.status(200).json({
       success: true,
@@ -46,11 +50,12 @@ const getGroupById = async (req, res, next) => {
 // Update Group
 const updateGroup = async (req, res, next) => {
   try {
-   const group = await groupService.updateGroup(
-  req.params.groupId,
-  req.user.id,
-  req.body
-);
+    const userId = getUserId(req);
+    const group = await groupService.updateGroup(
+      req.params.groupId,
+      userId,
+      req.body
+    );
 
     return res.status(200).json({
       success: true,
@@ -65,10 +70,11 @@ const updateGroup = async (req, res, next) => {
 // Delete Group
 const deleteGroup = async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     await groupService.deleteGroup(
-  req.params.groupId,
-  req.user.id
-);
+      req.params.groupId,
+      userId
+    );
     return res.status(200).json({
       success: true,
       message: "Group deleted successfully",
@@ -81,11 +87,12 @@ const deleteGroup = async (req, res, next) => {
 // Add Member
 const addMember = async (req, res, next) => {
   try {
-  const group = await groupService.addMember(
-  req.params.groupId,
-  req.user.id,
-  req.body.memberId
-);
+    const userId = getUserId(req);
+    const group = await groupService.addMember(
+      req.params.groupId,
+      userId,
+      req.body.memberId
+    );
 
     return res.status(200).json({
       success: true,
@@ -100,11 +107,12 @@ const addMember = async (req, res, next) => {
 // Remove Member
 const removeMember = async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const group = await groupService.removeMember(
-  req.params.groupId,
-  req.user.id,
-  req.params.memberId
-);
+      req.params.groupId,
+      userId,
+      req.params.memberId
+    );
     return res.status(200).json({
       success: true,
       message: "Member removed successfully",
@@ -118,9 +126,10 @@ const removeMember = async (req, res, next) => {
 // Leave Group
 const leaveGroup = async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const group = await groupService.leaveGroup(
       req.params.groupId,
-      req.user.id
+      userId
     );
 
     return res.status(200).json({

@@ -1,5 +1,11 @@
 const groupRepository = require("./repository");
 
+const getUserId = (userObj) => {
+  if (!userObj) return null;
+  if (typeof userObj === "object" && userObj._id) return userObj._id.toString();
+  return userObj.toString();
+};
+
 // Create Group
 const createGroup = async (data, userId) => {
   const groupData = {
@@ -29,7 +35,8 @@ const updateGroup = async (groupId, userId, updateData) => {
     throw new Error("Group not found");
   }
 
-  if (group.createdBy.toString() !== userId.toString()) {
+  const createdById = getUserId(group.createdBy);
+  if (createdById !== userId.toString()) {
     throw new Error("Only group owner can update this group");
   }
 
@@ -44,7 +51,8 @@ const deleteGroup = async (groupId, userId) => {
     throw new Error("Group not found");
   }
 
-  if (group.createdBy.toString() !== userId.toString()) {
+  const createdById = getUserId(group.createdBy);
+  if (createdById !== userId.toString()) {
     throw new Error("Only group owner can delete this group");
   }
 
@@ -59,17 +67,18 @@ const addMember = async (groupId, userId, memberId) => {
     throw new Error("Group not found");
   }
 
-  if (group.createdBy.toString() !== userId.toString()) {
+  const createdById = getUserId(group.createdBy);
+  if (createdById !== userId.toString()) {
     throw new Error("Only group owner can add members");
   }
 
   const isMember = group.members.some(
-  (member) => member.toString() === memberId.toString()
-);
+    (member) => getUserId(member) === memberId.toString()
+  );
 
-if (isMember) {
-  throw new Error("User is already a member of this group");
-}
+  if (isMember) {
+    throw new Error("User is already a member of this group");
+  }
 
   return await groupRepository.addMember(groupId, memberId);
 };
@@ -82,14 +91,18 @@ const removeMember = async (groupId, userId, memberId) => {
     throw new Error("Group not found");
   }
 
-  if (group.createdBy.toString() !== userId.toString()) {
+  const createdById = getUserId(group.createdBy);
+  if (createdById !== userId.toString()) {
     throw new Error("Only group owner can remove members");
   }
-if (group.createdBy.toString() === memberId.toString()) {
-  throw new Error("Group owner cannot be removed");
-}
+
+  if (createdById === memberId.toString()) {
+    throw new Error("Group owner cannot be removed");
+  }
+
   return await groupRepository.removeMember(groupId, memberId);
 };
+
 // Leave Group
 const leaveGroup = async (groupId, memberId) => {
   const group = await groupRepository.getGroupById(groupId);
@@ -99,14 +112,15 @@ const leaveGroup = async (groupId, memberId) => {
   }
 
   const isMember = group.members.some(
-    (member) => member.toString() === memberId.toString()
+    (member) => getUserId(member) === memberId.toString()
   );
 
   if (!isMember) {
     throw new Error("You are not a member of this group");
   }
 
-  if (group.createdBy.toString() === memberId.toString()) {
+  const createdById = getUserId(group.createdBy);
+  if (createdById === memberId.toString()) {
     throw new Error(
       "Group owner cannot leave. Transfer ownership or delete the group."
     );

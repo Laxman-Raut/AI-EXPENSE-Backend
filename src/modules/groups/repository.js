@@ -2,7 +2,10 @@ const Group = require("./model");
 
 // Create Group
 const createGroup = async (groupData) => {
-  return await Group.create(groupData);
+  const group = await Group.create(groupData);
+  return await Group.findById(group._id)
+    .populate("createdBy", "fullName email avatar")
+    .populate("members", "fullName email avatar");
 };
 
 // Get All Groups of Logged-in User
@@ -27,7 +30,9 @@ const getGroupById = async (groupId) => {
 const updateGroup = async (groupId, updateData) => {
   return await Group.findByIdAndUpdate(groupId, updateData, {
     new: true,
-  });
+  })
+    .populate("createdBy", "fullName email avatar")
+    .populate("members", "fullName email avatar");
 };
 
 // Soft Delete Group
@@ -55,7 +60,9 @@ const addMember = async (groupId, memberId) => {
     {
       new: true,
     }
-  );
+  )
+    .populate("createdBy", "fullName email avatar")
+    .populate("members", "fullName email avatar");
 };
 
 // Remove Member
@@ -70,7 +77,9 @@ const removeMember = async (groupId, memberId) => {
     {
       new: true,
     }
-  );
+  )
+    .populate("createdBy", "fullName email avatar")
+    .populate("members", "fullName email avatar");
 };
 
 // Leave Group
@@ -85,7 +94,9 @@ const leaveGroup = async (groupId, memberId) => {
     {
       new: true,
     }
-  );
+  )
+    .populate("createdBy", "fullName email avatar")
+    .populate("members", "fullName email avatar");
 };
 
 module.exports = {
