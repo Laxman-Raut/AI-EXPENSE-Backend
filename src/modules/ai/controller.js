@@ -1,11 +1,20 @@
 const cloudinary = require("../../config/cloudinary");
 const { scanReceipt } = require("./service");
+const { getSystemSettingsDoc } = require("../../config/gemini");
 
 const scanReceiptController = async (req, res) => {
     let publicId = null;
     let secureUrl = null;
 
     try {
+        const settings = await getSystemSettingsDoc();
+        if (settings && settings.aiFeatures && settings.aiFeatures.enableReceiptScanner === false) {
+            return res.status(503).json({
+                success: false,
+                message: "AI Receipt Scanner is temporarily disabled for maintenance by the administrator."
+            });
+        }
+
         let buffer;
         let mimetype;
         let geminiBase64Data;

@@ -1,7 +1,16 @@
 const { parseVoiceTransaction } = require("./service");
+const { getSystemSettingsDoc } = require("../../../config/gemini");
 
 const voiceTransactionController = async (req, res) => {
   try {
+    const settings = await getSystemSettingsDoc();
+    if (settings && settings.aiFeatures && settings.aiFeatures.enableVoiceScanner === false) {
+      return res.status(503).json({
+        success: false,
+        message: "Voice Transaction Scanner is temporarily disabled for maintenance by the administrator."
+      });
+    }
+
     const { text } = req.body;
 
     if (!text) {

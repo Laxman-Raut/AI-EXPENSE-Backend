@@ -1,10 +1,12 @@
-const ai = require("../../../config/gemini");
+const { getGeminiClient, getGeminiModel } = require("../../../config/gemini");
 const VOICE_PROMPT = require("./prompt");
 
 const parseVoiceTransaction = async (text) => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+    const client = await getGeminiClient();
+    const modelName = await getGeminiModel("gemini-2.5-flash");
+    const response = await client.models.generateContent({
+      model: modelName,
       contents: [
         {
           role: "user",

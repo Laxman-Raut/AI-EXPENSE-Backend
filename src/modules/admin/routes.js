@@ -24,6 +24,8 @@ const {
    resetUserPassword,
    deletePlan,
    updatePlanLimits,
+   getSystemSettingsCtrl,
+   updateSystemSettingsCtrl,
 } = require("./controller");
 
 const {
@@ -47,6 +49,20 @@ router.get(
   authenticate,
   requireAdmin,
   getDashboard
+);
+
+router.get(
+  "/settings",
+  authenticate,
+  requireAdmin,
+  getSystemSettingsCtrl
+);
+
+router.put(
+  "/settings",
+  authenticate,
+  requireAdmin,
+  updateSystemSettingsCtrl
 );
 
 

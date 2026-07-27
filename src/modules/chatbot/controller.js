@@ -1,8 +1,17 @@
 const chatbotService = require("./service");
+const { getSystemSettingsDoc } = require("../../config/gemini");
 
 // Send message to AI
 const sendMessage = async (req, res) => {
   try {
+    const settings = await getSystemSettingsDoc();
+    if (settings && settings.aiFeatures && settings.aiFeatures.enableChatbot === false) {
+      return res.status(503).json({
+        success: false,
+        message: "AI Chatbot is temporarily disabled for maintenance by the administrator."
+      });
+    }
+
     const { message } = req.body;
 
     if (!message) {

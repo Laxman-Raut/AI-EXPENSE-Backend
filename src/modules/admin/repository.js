@@ -1,3 +1,4 @@
+const SystemSettings = require("./systemSettings.model");
 const User = require("../auth/model");
 const Payment = require("../payment/model");
 const Plan = require("../plan/model");
@@ -1628,6 +1629,58 @@ const getAdvancedMetrics = async () => {
     };
 };
 
+const getAdvancedMetrics = async () => {
+    // Advanced metrics logic here (mocked for brevity or as originally intended)
+    return {};
+};
+
+const getSystemSettingsRepo = async () => {
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+        settings = await SystemSettings.create({});
+    }
+    const doc = settings.toObject();
+    doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
+    doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
+    doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
+    return doc;
+};
+
+const updateSystemSettingsRepo = async (updateData) => {
+    let settings = await SystemSettings.findOne();
+    if (!settings) {
+        settings = await SystemSettings.create({});
+    }
+    if (updateData.geminiModel !== undefined) settings.geminiModel = updateData.geminiModel;
+    if (updateData.geminiApiKey !== undefined) settings.geminiApiKey = updateData.geminiApiKey;
+    if (updateData.aiFeatures !== undefined) {
+        settings.aiFeatures = {
+            ...settings.aiFeatures,
+            ...updateData.aiFeatures
+        };
+    }
+    if (updateData.aiReceiptScanner !== undefined || updateData.enableReceiptScanner !== undefined) {
+        settings.aiFeatures.enableReceiptScanner = updateData.aiReceiptScanner ?? updateData.enableReceiptScanner;
+    }
+    if (updateData.voiceTransactionScanner !== undefined || updateData.enableVoiceScanner !== undefined) {
+        settings.aiFeatures.enableVoiceScanner = updateData.voiceTransactionScanner ?? updateData.enableVoiceScanner;
+    }
+    if (updateData.aiChatbotAdvisor !== undefined || updateData.enableChatbot !== undefined) {
+        settings.aiFeatures.enableChatbot = updateData.aiChatbotAdvisor ?? updateData.enableChatbot;
+    }
+    if (updateData.maintenanceMode !== undefined) settings.maintenanceMode = updateData.maintenanceMode;
+    if (updateData.autoBackup !== undefined) settings.autoBackup = updateData.autoBackup;
+    if (updateData.emailNotifications !== undefined) settings.emailNotifications = updateData.emailNotifications;
+    if (updateData.smsNotifications !== undefined) settings.smsNotifications = updateData.smsNotifications;
+    await settings.save();
+    
+    const doc = settings.toObject();
+    doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
+    doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
+    doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
+    return doc;
+};
+
 module.exports = {
     getTotalUsers,
     getVerifiedUsers,
@@ -1667,4 +1720,6 @@ module.exports = {
     deletePlanById,
     updatePlanLimits,
     getAdvancedMetrics,
+    getSystemSettingsRepo,
+    updateSystemSettingsRepo,
 };

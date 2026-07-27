@@ -1,4 +1,4 @@
-const ai = require("../../config/gemini");
+const { getGeminiClient, getGeminiModel } = require("../../config/gemini");
 const RECEIPT_PROMPT = require("./prompt");
 
 const scanReceipt = async (base64Data, mimeType = "image/jpeg", textData = null) => {
@@ -30,8 +30,10 @@ const scanReceipt = async (base64Data, mimeType = "image/jpeg", textData = null)
 
     console.log(`[Gemini] Sending request to gemini-flash-latest with ${parts.length} parts`);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+    const client = await getGeminiClient();
+    const modelName = await getGeminiModel("gemini-2.5-flash");
+    const response = await client.models.generateContent({
+      model: modelName,
       contents: [
         {
           role: "user",

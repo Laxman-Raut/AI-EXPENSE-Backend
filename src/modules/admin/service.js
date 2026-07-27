@@ -37,6 +37,8 @@ const {
     deletePlanById,
     updatePlanLimits,
     getAdvancedMetrics,
+    getSystemSettingsRepo,
+    updateSystemSettingsRepo,
 } = require("./repository");
 
 // ======================================
@@ -382,6 +384,14 @@ const updatePlanLimitsService = async (planId, limitsData) => {
     return await updatePlanLimits(planId, limitsData);
 };
 
+const getSystemSettingsService = async () => {
+    return await getSystemSettingsRepo();
+};
+
+const updateSystemSettingsService = async (updateData) => {
+    return await updateSystemSettingsRepo(updateData);
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -404,4 +414,6 @@ module.exports = {
     initiateUserPasswordResetService,
     deletePlanByIdService,
     updatePlanLimitsService,
+    getSystemSettingsService,
+    updateSystemSettingsService,
 };

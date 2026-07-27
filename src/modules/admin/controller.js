@@ -20,6 +20,8 @@ const {
     initiateUserPasswordResetService,
     deletePlanByIdService,
     updatePlanLimitsService,
+    getSystemSettingsService,
+    updateSystemSettingsService,
 } = require("./service");
 
 // ======================================
@@ -548,6 +550,37 @@ const updatePlanLimits = async (req, res) => {
   }
 };
 
+const getSystemSettingsCtrl = async (req, res) => {
+  try {
+    const data = await getSystemSettingsService();
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateSystemSettingsCtrl = async (req, res) => {
+  try {
+    const data = await updateSystemSettingsService(req.body);
+    return res.status(200).json({
+      success: true,
+      message: "System settings updated successfully.",
+      data,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -570,4 +603,6 @@ module.exports = {
       resetUserPassword,
       deletePlan,
       updatePlanLimits,
+      getSystemSettingsCtrl,
+      updateSystemSettingsCtrl,
 };

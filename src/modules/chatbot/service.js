@@ -1,4 +1,4 @@
-const ai = require("../../config/gemini");
+const { getGeminiClient, getGeminiModel } = require("../../config/gemini");
 const buildFinanceContext = require("./context");
 const ChatMessage = require("./model");
 const CHATBOT_PROMPT = require("./prompt");
@@ -125,8 +125,10 @@ ${message}
 `;
 
   // Ask Gemini using working model gemini-3.1-flash-lite
-  const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite",
+  const client = await getGeminiClient();
+  const modelName = await getGeminiModel("gemini-2.5-flash");
+  const response = await client.models.generateContent({
+    model: modelName,
     contents: prompt,
   });
 
