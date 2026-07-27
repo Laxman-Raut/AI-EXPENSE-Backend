@@ -1,25 +1,35 @@
-const Joi = require("joi");
 const mongoose = require("mongoose");
 
-// Create Group Validation
-const createGroupSchema = Joi.object({
-  name: Joi.string().trim().min(3).max(50).required().messages({
-    "string.empty": "Group name is required",
-    "string.min": "Group name must be at least 3 characters",
-    "string.max": "Group name cannot exceed 50 characters",
-  }),
-
-  description: Joi.string().trim().max(200).allow("").optional(),
-});
-
-// Validation Middleware
+// Create Group Validation (Manual JS validation - no external Joi package needed)
 const validateCreateGroup = (req, res, next) => {
-  const { error } = createGroupSchema.validate(req.body);
+  const { name, description } = req.body || {};
 
-  if (error) {
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
     return res.status(400).json({
       success: false,
-      message: error.details[0].message,
+      message: "Group name is required",
+    });
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName.length < 3) {
+    return res.status(400).json({
+      success: false,
+      message: "Group name must be at least 3 characters",
+    });
+  }
+
+  if (trimmedName.length > 50) {
+    return res.status(400).json({
+      success: false,
+      message: "Group name cannot exceed 50 characters",
+    });
+  }
+
+  if (description && typeof description === "string" && description.trim().length > 200) {
+    return res.status(400).json({
+      success: false,
+      message: "Description cannot exceed 200 characters",
     });
   }
 
