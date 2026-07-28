@@ -111,11 +111,37 @@ const getSplitRequestById = async (splitId) => {
 };
 
 // Update
-const updateSplitRequest = async (splitId, updateData) => {
+const updateSplitRequest = async (splitId, updateData, currentUserId) => {
   const oldSplit = await splitRequestRepository.getSplitRequestById(splitId);
 
   if (!oldSplit) {
     throw new Error("Split request not found");
+  }
+
+  // Authorization check for changing participant payment status
+  if (currentUserId && updateData.participants && Array.isArray(updateData.participants)) {
+    const group = await groupRepository.getGroupById(oldSplit.group);
+    const groupOwnerId = group ? getUserId(group.createdBy) : null;
+    const splitPayerId = getUserId(oldSplit.paidBy);
+    const currUserStr = currentUserId.toString();
+
+    const isGroupAdmin = groupOwnerId === currUserStr;
+    const isSplitCreator = splitPayerId === currUserStr;
+    const isAuthorizedAdmin = isGroupAdmin || isSplitCreator;
+
+    for (const newP of updateData.participants) {
+      const pUserId = getUserId(newP.user);
+      const oldP = oldSplit.participants.find(
+        (op) => getUserId(op.user) === pUserId
+      );
+
+      if (oldP && oldP.status !== newP.status) {
+        // If modifying someone else's payment status, user MUST be Group Admin/Owner or Split Creator
+        if (pUserId !== currUserStr && !isAuthorizedAdmin) {
+          throw new Error("Only group admin or creator can mark other members as paid");
+        }
+      }
+    }
   }
 
   // Check for status changes to 'paid' to generate automatic Income & Expense transactions

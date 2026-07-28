@@ -58,10 +58,12 @@ const getSplitRequestById = async (req, res, next) => {
 // Update Split Request
 const updateSplitRequest = async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     const splitRequest =
       await splitRequestService.updateSplitRequest(
         req.params.splitId,
-        req.body
+        req.body,
+        userId
       );
 
     return res.status(200).json({
