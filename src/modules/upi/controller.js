@@ -2,9 +2,22 @@ const SplitRequest = require("../splitRequests/model");
 const User = require("../auth/model");
 const upiService = require("./service");
 
+const getUserId = (userObj) => {
+  if (!userObj) return "";
+  if (typeof userObj === "object") return (userObj._id || userObj.id || "").toString();
+  return userObj.toString();
+};
+
 const generateDeepLink = async (req, res, next) => {
   try {
     const { splitRequestId } = req.body;
+
+    if (!splitRequestId) {
+      return res.status(400).json({
+        success: false,
+        message: "splitRequestId is required",
+      });
+    }
 
     // Find Split Request
     const splitRequest = await SplitRequest.findById(splitRequestId);
@@ -16,9 +29,11 @@ const generateDeepLink = async (req, res, next) => {
       });
     }
 
+    const currentUserId = (req.user?.id || req.user?.userId || req.user?._id || "").toString();
+
     // Find logged-in user in participants
     const participant = splitRequest.participants.find(
-      (p) => p.user.toString() === req.user.id
+      (p) => getUserId(p.user) === currentUserId
     );
 
     if (!participant) {
@@ -36,8 +51,9 @@ const generateDeepLink = async (req, res, next) => {
       });
     }
 
-    // Find Admin (Person who paid)
-    const admin = await User.findById(splitRequest.paidBy);
+    // Find Admin (Person who paid for the split)
+    const adminId = getUserId(splitRequest.paidBy);
+    const admin = await User.findById(adminId);
 
     if (!admin) {
       return res.status(404).json({

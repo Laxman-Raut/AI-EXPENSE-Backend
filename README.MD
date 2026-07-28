@@ -1,6 +1,6 @@
 # AI Expense Tracker - Backend API Server
 
-This is the backend API server for the **AI Expense Tracker** web and mobile application. The server is built using **Node.js**, **Express**, and **MongoDB** (via Mongoose), and integrates with **Google Gemini AI** (for automated receipt and voice parsing) and **Razorpay** (for subscription billing payments).
+This is the backend API server for the **AI Expense Tracker** web and mobile application. The server is built using **Node.js**, **Express**, and **MongoDB** (via Mongoose), and integrates with **Google Gemini AI** (for automated receipt and voice parsing), **Razorpay** (for subscription billing payments), and **UPI Deep Linking** (for instant split bill payments).
 
 ---
 
@@ -14,13 +14,15 @@ The application adopts a **Modular Architecture**. Instead of separating the pro
 ├── src/
 │   ├── config/                 # Third-party configurations (Cloudinary, Mongoose DB, Gemini Client)
 │   └── modules/                # Feature modules
-│       ├── auth/               # User registration, JWT login, OTP password resets, RBAC middlewares
+│       ├── auth/               # User registration, JWT login, OTP password resets, upiId profile updates
 │       ├── transaction/        # Expense & income tracking, category budget allocations
+│       ├── groups/             # Group management, member management, owner/admin validation
+│       ├── splitRequests/      # Bill splitting, payment status tracking, automatic transaction creation
+│       ├── upi/                # NPCI compliant UPI Deep Link generation for instant settlements
 │       ├── ai/                 # Gemini API wrapper for receipt scanning, voice parsing, chatbot
 │       ├── payment/            # Razorpay orders, payments processing, signature verification
 │       ├── plan/               # Subscription plans creation, version histories, admin drafts
 │       ├── subscription/       # State validation, extend dates, auto-expiry cron schedulers
-│       ├── subscription-history/# Mongoose models for tracking historical plan adjustments
 │       ├── notification/       # Internal in-app notification events & daily scheduler alerts
 │       └── ...                 # Other modules (dashboard, analytics, upload, calendar, export)
 ```
@@ -33,6 +35,33 @@ Each module typically exposes the following files:
 4. `repository.js` (optional): Encapsulates Mongoose query structures, separating database logic from services.
 5. `model.js`: Declares MongoDB database schemas.
 6. `validation.js` / `middleware.js`: Custom validation validators (Zod/express-validator) and role rules.
+
+---
+
+## ⚡ UPI Deep Link & Group Payment Rules
+
+### 1. UPI Deep Link Generation (`POST /api/upi/deeplink`)
+Generates NPCI compliant standard UPI payment links for split expenses:
+- **Endpoint**: `POST /api/upi/deeplink`
+- **Headers**: `Authorization: Bearer <JWT_TOKEN>`
+- **Request Body**: `{ "splitRequestId": "<splitRequestId>" }`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "message": "UPI Deep Link generated successfully.",
+    "data": {
+      "deepLink": "upi://pay?pa=laxman@oksbi&pn=Laxman&am=150.00&cu=INR&tn=Dinner&tr=TR172215...&mode=00",
+      "amount": 150,
+      "receiver": "Laxman Raut",
+      "upiId": "laxman@oksbi"
+    }
+  }
+  ```
+
+### 2. Group Admin & Creator Authorization Rules
+- **Group Creator / Admin & Split Creator**: Authorized to change any participant's status to `paid` or `pending`.
+- **Regular Members**: Restricted to marking ONLY their own payment share. Attempts to change another member's status throw a 403 Forbidden error: `"Only group admin or creator can mark other members as paid"`.
 
 ---
 
@@ -60,9 +89,6 @@ To ensure the subscription state is always accurate, the system operates on two 
   - A background scheduler is registered on server start (`server.js`). It scans the database every 60 seconds.
   - **Auto-Expiration**: It sweeps the DB, detects expired users who haven't logged in recently, marks them `"expired"`, creates a `SubscriptionHistory` audit, and generates an in-app notification.
   - **Warning Notices**: It flags users whose subscriptions expire in **3 days** and sends them a `"Subscription Expiring Soon"` warning notification exactly once per subscription period.
-
-### 3. Historical Audit Trails
-Any adjustment to a subscription (user upgrades, cancellations, admin activations, admin duration extensions, scheduler expirations) generates a permanent log entry inside the `SubscriptionHistory` collection. Users can fetch their chronological billing and plan lifecycle timeline via `GET /api/subscription/timeline`.
 
 ---
 
