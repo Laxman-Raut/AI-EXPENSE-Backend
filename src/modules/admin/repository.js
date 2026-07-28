@@ -217,42 +217,78 @@ const getLatestPayments = () => {
         .limit(5);
 };
 
-// Revenue Trend (Last 7 Days)
+// Helper to normalize plan slug/string into standard display key & name
+const normalizePlanName = (planStr) => {
+  if (!planStr) return { key: 'free', name: 'Free Tier' };
+  const str = String(planStr).toLowerCase().trim();
+
+  if (str.includes('pro')) return { key: 'pro', name: 'Pro Plan' };
+  if (str.includes('business') || str.includes('enterprise')) return { key: 'business', name: 'Business Plan' };
+  if (str.includes('basic')) return { key: 'basic', name: 'Basic Plan' };
+  if (str.includes('free')) return { key: 'free', name: 'Free Tier' };
+
+  // Fallback: title case of slug
+  const title = str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return { key: str, name: title };
+};
+
+// Revenue Trend (Last 7 Days, grouped by plan)
 // ======================================
 
 const getRevenueTrend = async () => {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 6);
-    startDate.setHours(0, 0, 0, 0);
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - 6);
+  startDate.setHours(0, 0, 0, 0);
 
-    return Payment.aggregate([
-        {
-            $match: {
-                status: "success",
-                paidAt: {
-                    $gte: startDate,
-                },
-            },
+  const rawTrend = await Payment.aggregate([
+    {
+      $match: {
+        status: "success",
+        paidAt: { $gte: startDate },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          date: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+          plan: "$plan",
         },
-        {
-            $group: {
-                _id: {
-                    $dateToString: {
-                        format: "%Y-%m-%d",
-                        date: "$paidAt",
-                    },
-                },
-                revenue: {
-                    $sum: "$amount",
-                },
-            },
-        },
-        {
-            $sort: {
-                _id: 1,
-            },
-        },
-    ]);
+        revenue: { $sum: "$amount" },
+      },
+    },
+    { $sort: { "_id.date": 1 } },
+  ]);
+
+  // Build full 7-day array with per-plan breakdown
+  const result = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+
+    const dayData = {
+      date: dateStr,
+      revenue: 0,
+      plans: {
+        'Free Tier': 0,
+        'Basic Plan': 0,
+        'Pro Plan': 0,
+        'Business Plan': 0,
+      }
+    };
+
+    rawTrend.forEach(item => {
+      if (item._id?.date === dateStr) {
+        dayData.revenue += item.revenue || 0;
+        const norm = normalizePlanName(item._id?.plan);
+        dayData.plans[norm.name] = (dayData.plans[norm.name] || 0) + (item.revenue || 0);
+      }
+    });
+
+    result.push(dayData);
+  }
+
+  return result;
 };
 
 // User Growth Trend (Last 7 Days)
@@ -317,29 +353,51 @@ const getSubscriptionDistribution = async () => {
 // ======================================
 
 const getRevenueByPlan = async () => {
-  return Payment.aggregate([
-    {
-      $match: {
-        status: "success",
-      },
-    },
+  const allDbPlans = await Plan.find({ status: 'active' }).lean();
+
+  const rawRevenue = await Payment.aggregate([
+    { $match: { status: "success" } },
     {
       $group: {
         _id: "$plan",
-        revenue: {
-          $sum: "$amount",
-        },
-        payments: {
-          $sum: 1,
-        },
+        revenue: { $sum: "$amount" },
+        payments: { $sum: 1 },
       },
     },
-    {
-      $sort: {
-        revenue: -1,
-      },
-    },
+    { $sort: { revenue: -1 } },
   ]);
+
+  const planMap = {};
+
+  allDbPlans.forEach(p => {
+    const norm = normalizePlanName(p.slug || p.name);
+    planMap[norm.key] = {
+      slug: norm.key,
+      name: norm.name,
+      revenue: 0,
+      payments: 0,
+    };
+  });
+
+  if (!planMap['free']) {
+    planMap['free'] = { slug: 'free', name: 'Free Tier', revenue: 0, payments: 0 };
+  }
+
+  rawRevenue.forEach(p => {
+    const norm = normalizePlanName(p._id);
+    if (!planMap[norm.key]) {
+      planMap[norm.key] = {
+        slug: norm.key,
+        name: norm.name,
+        revenue: 0,
+        payments: 0,
+      };
+    }
+    planMap[norm.key].revenue += p.revenue || 0;
+    planMap[norm.key].payments += p.payments || 0;
+  });
+
+  return Object.values(planMap);
 };
 
 // ======================================
