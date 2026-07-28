@@ -17,6 +17,11 @@ const systemSettingsSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    currency: {
+      type: String,
+      enum: ["INR", "USD"],
+      default: "INR",
+    },
     aiFeatures: {
       enableReceiptScanner: {
         type: Boolean,

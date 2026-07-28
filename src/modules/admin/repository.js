@@ -1631,6 +1631,7 @@ const getSystemSettingsRepo = async () => {
         settings = await SystemSettings.create({});
     }
     const doc = settings.toObject();
+    doc.currency = settings.currency || "INR";
     doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
     doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
     doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
@@ -1644,6 +1645,7 @@ const updateSystemSettingsRepo = async (updateData) => {
     }
     if (updateData.geminiModel !== undefined) settings.geminiModel = updateData.geminiModel;
     if (updateData.geminiApiKey !== undefined) settings.geminiApiKey = updateData.geminiApiKey;
+    if (updateData.currency !== undefined) settings.currency = updateData.currency;
     if (updateData.aiFeatures !== undefined) {
         settings.aiFeatures = {
             ...settings.aiFeatures,
@@ -1666,6 +1668,7 @@ const updateSystemSettingsRepo = async (updateData) => {
     await settings.save();
     
     const doc = settings.toObject();
+    doc.currency = settings.currency || "INR";
     doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
     doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
     doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
