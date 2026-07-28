@@ -210,6 +210,7 @@ const updateProfile = async (userId, updateData) => {
   if (updateData.monthlyBudget !== undefined) allowedUpdates.monthlyBudget = Number(updateData.monthlyBudget);
   if (updateData.mobile !== undefined) allowedUpdates.mobile = updateData.mobile;
   if (updateData.age !== undefined) allowedUpdates.age = Number(updateData.age);
+  if (updateData.upiId !== undefined) allowedUpdates.upiId = updateData.upiId;
   if (updateData.categoryBudgets !== undefined) allowedUpdates.categoryBudgets = updateData.categoryBudgets;
   if (updateData.avatar !== undefined) {
     allowedUpdates.avatar = typeof updateData.avatar === "string" ? { url: updateData.avatar } : updateData.avatar;
