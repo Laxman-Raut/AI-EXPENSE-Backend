@@ -46,19 +46,19 @@ const createSplitRequest = async (data, userId) => {
     data.participants = data.participants.map((p) => ({
       ...p,
       amount: share,
-      status: getUserId(p.user) === payerIdStr ? "paid" : (p.status || "pending"),
+      status: getUserId(p.user) === payerIdStr ? "paid" : "pending",
     }));
   } else if (type === "exact") {
     data.participants = data.participants.map((p) => ({
       ...p,
       amount: Number(p.amount || 0),
-      status: getUserId(p.user) === payerIdStr ? "paid" : (p.status || "pending"),
+      status: getUserId(p.user) === payerIdStr ? "paid" : "pending",
     }));
   } else if (type === "percentage") {
     data.participants = data.participants.map((p) => ({
       ...p,
       amount: Number(((totalAmt * (p.percentage || 0)) / 100).toFixed(2)),
-      status: getUserId(p.user) === payerIdStr ? "paid" : (p.status || "pending"),
+      status: getUserId(p.user) === payerIdStr ? "paid" : "pending",
     }));
   } else if (type === "shares") {
     const totalShares = data.participants.reduce(
@@ -70,7 +70,7 @@ const createSplitRequest = async (data, userId) => {
       return {
         ...p,
         amount: Number(((totalAmt * shareCount) / (totalShares || 1)).toFixed(2)),
-        status: getUserId(p.user) === payerIdStr ? "paid" : (p.status || "pending"),
+        status: getUserId(p.user) === payerIdStr ? "paid" : "pending",
       };
     });
   }
