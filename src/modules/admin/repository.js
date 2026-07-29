@@ -25,13 +25,17 @@ const getVerifiedUsers = () =>
 
 const getPremiumUsers = () =>
     User.countDocuments({
-        "subscription.plan": "pro",
+        "subscription.plan": { $ne: "free" },
         "subscription.status": "active",
     });
 
 const getFreeUsers = () =>
     User.countDocuments({
-        "subscription.plan": "free",
+        $or: [
+            { "subscription.plan": "free" },
+            { "subscription.status": { $ne: "active" } }
+        ],
+        "accountStatus": { $ne: "suspended" },
     });
 
 // ==============================
