@@ -64,10 +64,10 @@ const getFriends = (userId) => {
 const removeFriend = (user1, user2) => {
   return Friend.findOneAndDelete({
     $or: [
+      { _id: user2 },
       { sender: user1, receiver: user2 },
       { sender: user2, receiver: user1 },
     ],
-    status: "accepted",
   });
 };
 

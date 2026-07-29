@@ -2,40 +2,54 @@ const friendRepository = require("./repository");
 const User = require("../auth/model");
 
 const sendFriendRequest = async (requesterId, recipientId) => {
+  const reqStr = requesterId ? requesterId.toString() : "";
+  const recStr = recipientId ? recipientId.toString() : "";
+
   // Can't send request to yourself
-  if (requesterId === recipientId) {
+  if (reqStr === recStr) {
     throw new Error("You cannot send a friend request to yourself.");
   }
 
   // Check recipient exists
-  const recipient = await User.findById(recipientId);
-
+  const recipient = await User.findById(recStr);
   if (!recipient) {
     throw new Error("User not found.");
   }
 
   // Check existing relationship
   const existing = await friendRepository.findExistingFriendship(
-    requesterId,
-    recipientId
+    reqStr,
+    recStr
   );
 
   if (existing) {
-    switch (existing.status) {
-      case "pending":
-        throw new Error("Friend request already pending.");
+    if (existing.status === "accepted") {
+      throw new Error("You are already friends.");
+    }
 
-      case "accepted":
-        throw new Error("You are already friends.");
+    if (existing.status === "pending") {
+      const existingSenderStr = existing.sender ? existing.sender.toString() : "";
+      if (existingSenderStr === reqStr) {
+        throw new Error("Friend request already sent.");
+      } else {
+        // Recipient had already sent a request to you! Automatically accept it.
+        return await friendRepository.acceptRequest(existing._id);
+      }
+    }
 
-      case "rejected":
-        throw new Error("Friend request was already rejected.");
+    if (existing.status === "rejected") {
+      // Allow re-sending request by updating existing record to pending
+      existing.sender = reqStr;
+      existing.receiver = recStr;
+      existing.status = "pending";
+      return await existing.save();
     }
   }
 
   return friendRepository.createRequest({
-    sender: requesterId,
-    receiver: recipientId,
+    sender: reqStr,
+    receiver: recStr,
+    status: "pending",
   });
 };
 
@@ -72,7 +86,23 @@ const getPendingRequests = async (userId) => {
 };
 
 const getFriends = async (userId) => {
-  return friendRepository.getFriends(userId);
+  const friendships = await friendRepository.getFriends(userId);
+  const currIdStr = userId ? userId.toString() : "";
+
+  return friendships.map((f) => {
+    const senderIdStr = f.sender?._id ? f.sender._id.toString() : f.sender?.toString() || "";
+    const isSender = senderIdStr === currIdStr;
+    const friendObj = isSender ? f.receiver : f.sender;
+
+    return {
+      _id: f._id,
+      status: f.status,
+      createdAt: f.createdAt,
+      friend: friendObj,
+      sender: f.sender,
+      receiver: f.receiver,
+    };
+  });
 };
 
 const removeFriend = async (userId, friendId) => {
