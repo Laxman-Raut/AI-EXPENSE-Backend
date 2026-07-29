@@ -2,7 +2,7 @@ const User = require("./model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail } = require("../email");
+const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail, sendVerificationOtpEmail } = require("../email");
 const generateOTP = require("./otp");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
@@ -14,21 +14,96 @@ const registerUser = async (userData) => {
   const cleanEmail = email ? email.toLowerCase().trim() : "";
 
   // Check if user already exists
-  const existingUser = await User.findOne({ email: cleanEmail });
+  let existingUser = await User.findOne({ email: cleanEmail });
 
   if (existingUser) {
-    throw new Error("Email already registered");
+    if (existingUser.isVerified) {
+      throw new Error("Email already registered");
+    }
+    // Unverified existing user: update details, password and re-issue verification OTP
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+    existingUser.fullName = fullName.trim();
+    existingUser.password = hashedPassword;
+    existingUser.verificationOtp = otp;
+    existingUser.verificationOtpExpiry = expiry;
+    await existingUser.save();
+
+    sendVerificationOtpEmail(cleanEmail, fullName.trim(), otp).catch((err) => {
+      console.warn("[Email Service] Verification OTP email warning:", err.message);
+    });
+
+    return {
+      requiresVerification: true,
+      email: cleanEmail,
+      message: "Verification OTP sent to your email.",
+    };
   }
 
-  // Hash password
+  // Hash password for new user
   const hashedPassword = await bcrypt.hash(password, 10);
+  const otp = generateOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-  // Create user
+  // Create user (isVerified = false by default)
   const user = await User.create({
     fullName: fullName.trim(),
     email: cleanEmail,
     password: hashedPassword,
+    isVerified: false,
+    verificationOtp: otp,
+    verificationOtpExpiry: expiry,
   });
+
+  // Send registration verification OTP email asynchronously
+  sendVerificationOtpEmail(cleanEmail, fullName.trim(), otp).catch((err) => {
+    console.warn("[Email Service] Verification OTP email warning:", err.message);
+  });
+
+  return {
+    requiresVerification: true,
+    email: cleanEmail,
+    message: "Registration successful. Please enter the verification OTP sent to your email.",
+  };
+};
+
+const verifyRegistrationOtp = async ({ email, otp }) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
+  const cleanOtp = otp ? otp.toString().trim() : "";
+
+  const user = await User.findOne({ email: cleanEmail });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (user.isVerified) {
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+    const userObj = user.toObject();
+    delete userObj.password;
+    return { token, user: userObj };
+  }
+
+  if (!user.verificationOtp || user.verificationOtp !== cleanOtp) {
+    throw new Error("Invalid verification code.");
+  }
+
+  if (!user.verificationOtpExpiry || user.verificationOtpExpiry < new Date()) {
+    throw new Error("Verification code has expired. Please request a new code.");
+  }
+
+  // Mark verified & clear OTP fields
+  user.isVerified = true;
+  user.verificationOtp = null;
+  user.verificationOtpExpiry = null;
+  user.lastVisitedAt = new Date();
+  await user.save();
 
   // Record initial free plan subscription history
   try {
@@ -50,16 +125,51 @@ const registerUser = async (userData) => {
     console.warn("[Auth Service] Failed to create initial SubscriptionHistory:", historyErr.message);
   }
 
-  // Send welcome email asynchronously (non-blocking)
-  sendWelcomeEmail(cleanEmail, fullName.trim()).catch((err) => {
+  // Send welcome email
+  sendWelcomeEmail(cleanEmail, user.fullName).catch((err) => {
     console.warn("[Email Service] Welcome email send warning:", err.message);
   });
 
-  // Remove password
+  // Generate JWT token
+  const token = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
   const userObject = user.toObject();
   delete userObject.password;
 
-  return userObject;
+  return { token, user: userObject };
+};
+
+const resendVerificationOtp = async ({ email }) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
+  const user = await User.findOne({ email: cleanEmail });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (user.isVerified) {
+    throw new Error("Your account is already verified.");
+  }
+
+  const otp = generateOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+  user.verificationOtp = otp;
+  user.verificationOtpExpiry = expiry;
+  await user.save();
+
+  sendVerificationOtpEmail(cleanEmail, user.fullName, otp).catch((err) => {
+    console.warn("[Email Service] Resend verification OTP warning:", err.message);
+  });
+
+  return {
+    success: true,
+    message: "New verification OTP sent to your email.",
+  };
 };
 
 
@@ -80,6 +190,23 @@ const loginUser = async ({ email, password }) => {
 
   if (!isMatch) {
     throw new Error("Invalid password");
+  }
+
+  // Check if email is verified
+  if (!user.isVerified) {
+    const otp = generateOTP();
+    user.verificationOtp = otp;
+    user.verificationOtpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await user.save();
+
+    sendVerificationOtpEmail(cleanEmail, user.fullName, otp).catch((err) => {
+      console.warn("[Email Service] Login verification OTP warning:", err.message);
+    });
+
+    const err = new Error("Please verify your email address to log in.");
+    err.requiresVerification = true;
+    err.email = cleanEmail;
+    throw err;
   }
 
   // Generate JWT
@@ -326,6 +453,8 @@ const searchUsers = async (query, currentUserId) => {
 
 module.exports = {
   registerUser,
+  verifyRegistrationOtp,
+  resendVerificationOtp,
   loginUser,
   googleLoginUser,
   getProfile,

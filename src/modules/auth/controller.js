@@ -1,5 +1,7 @@
 const { 
   registerUser,
+  verifyRegistrationOtp: verifyRegistrationOtpService,
+  resendVerificationOtp: resendVerificationOtpService,
   loginUser,
   googleLoginUser,
   getProfile,
@@ -42,6 +44,8 @@ const login = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message,
+      requiresVerification: error.requiresVerification || false,
+      email: error.email || undefined,
     });
   }
 };
@@ -172,19 +176,38 @@ const support = async (req, res) => {
 };
 const authService = require("./service");
 
-const searchUsers = async (req, res, next) => {
+const verifyRegistrationOtpController = async (req, res) => {
   try {
-    const users = await authService.searchUsers(
-      req.query.query,
-      req.user.id
-    );
+    const { email, otp } = req.body;
+    const result = await verifyRegistrationOtpService({ email, otp });
 
     return res.status(200).json({
       success: true,
-      data: users,
+      message: "Email verified successfully.",
+      data: result,
     });
   } catch (error) {
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const resendVerificationOtpController = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = await resendVerificationOtpService({ email });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -193,6 +216,8 @@ const searchUsers = async (req, res, next) => {
 
 module.exports = {
   register,
+  verifyRegistrationOtp: verifyRegistrationOtpController,
+  resendVerificationOtp: resendVerificationOtpController,
   login,
   googleLogin,
   profile,
@@ -201,5 +226,5 @@ module.exports = {
   verifyOtp,
   resetPassword,
   support,
-   searchUsers,
+  searchUsers,
 };

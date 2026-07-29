@@ -51,28 +51,29 @@ const generateDeepLink = async (req, res, next) => {
       });
     }
 
-    // Find Admin (Person who paid for the split)
-    const adminId = getUserId(splitRequest.paidBy);
-    const admin = await User.findById(adminId);
+    // Find Payer (Person who paid for the split)
+    const payerId = getUserId(splitRequest.paidBy);
+    const payer = await User.findById(payerId);
 
-    if (!admin) {
+    if (!payer) {
       return res.status(404).json({
         success: false,
-        message: "Group admin not found.",
+        message: "Expense creator details not found.",
       });
     }
 
-    if (!admin.upiId) {
+    if (!payer.upiId || !payer.upiId.trim()) {
+      const payerName = payer.fullName || "Expense Creator";
       return res.status(400).json({
         success: false,
-        message: "Group admin has not added a UPI ID.",
+        message: `${payerName} has not added their UPI ID in Profile Settings. Please ask them to add their UPI ID.`,
       });
     }
 
     // Generate Deep Link
     const deepLink = upiService.generateDeepLink({
-      upiId: admin.upiId,
-      name: admin.fullName,
+      upiId: payer.upiId.trim(),
+      name: payer.fullName,
       amount: participant.amount,
       note: splitRequest.title,
     });
@@ -83,8 +84,8 @@ const generateDeepLink = async (req, res, next) => {
       data: {
         deepLink,
         amount: participant.amount,
-        receiver: admin.fullName,
-        upiId: admin.upiId,
+        receiver: payer.fullName,
+        upiId: payer.upiId.trim(),
       },
     });
   } catch (error) {

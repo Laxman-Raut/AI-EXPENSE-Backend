@@ -295,6 +295,77 @@ const sendSplitExpenseEmail = async ({
   });
 };
 
+// Send Registration Verification OTP Email
+const sendVerificationOtpEmail = async (email, fullName, otp) => {
+  await transporter.sendMail({
+    from: `AI Expense Tracker <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "AI Expense Tracker - Verify Your Account",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #090A0F; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #090A0F; padding: 30px 10px;">
+          <tr>
+            <td align="center">
+              
+              <table role="presentation" width="100%" style="max-width: 500px; background-color: #12131A; border: 1px solid #222533; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+                
+                <tr>
+                  <td style="padding: 28px 32px 20px 32px; background: linear-gradient(135deg, #181926 0%, #12131A 100%); border-bottom: 1px solid #1F2233; text-align: center;">
+                    <span style="font-size: 13px; font-weight: 800; color: #8A3FFC; letter-spacing: 1.5px; text-transform: uppercase;">
+                      ✨ AI EXPENSE TRACKER
+                    </span>
+                    <h1 style="margin: 8px 0 0 0; font-size: 22px; font-weight: 800; color: #FFFFFF;">
+                      Verify Your Email Address
+                    </h1>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 28px 32px; text-align: center;">
+                    <p style="margin: 0 0 20px 0; font-size: 15px; color: #A0A5B5; line-height: 1.6; text-align: left;">
+                      Hello <strong style="color: #FFFFFF;">${fullName || 'User'}</strong>,<br/><br/>
+                      Thank you for signing up for AI Expense Tracker! Please enter the 6-digit verification code below to activate your account:
+                    </p>
+
+                    <div style="background: linear-gradient(135deg, rgba(138,63,252,0.15) 0%, rgba(94,27,219,0.08) 100%); border: 1px solid rgba(138,63,252,0.3); border-radius: 14px; padding: 20px; margin: 24px 0;">
+                      <span style="font-size: 11px; font-weight: 700; color: #A366FF; text-transform: uppercase; letter-spacing: 1.5px;">YOUR VERIFICATION CODE</span>
+                      <div style="font-size: 36px; font-weight: 900; color: #8A3FFC; letter-spacing: 8px; margin-top: 6px; font-family: monospace;">
+                        ${otp}
+                      </div>
+                    </div>
+
+                    <p style="margin: 0; font-size: 13px; color: #6C727F; line-height: 1.5;">
+                      This code is valid for <strong>10 minutes</strong>. If you did not create an account, please ignore this email.
+                    </p>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding: 20px 32px; background-color: #0E0F15; border-top: 1px solid #1F2233; text-align: center;">
+                    <p style="margin: 0; font-size: 12px; color: #54595E;">
+                      © ${new Date().getFullYear()} AI Expense Tracker. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  });
+};
+
 module.exports = {
   sendOtpEmail,
   sendSupportEmail,
@@ -302,4 +373,5 @@ module.exports = {
   sendSubscriptionEmail,
   sendInvoiceEmail,
   sendSplitExpenseEmail,
+  sendVerificationOtpEmail,
 };

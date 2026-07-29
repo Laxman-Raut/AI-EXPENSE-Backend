@@ -191,6 +191,17 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // Registration Email Verification OTP
+    verificationOtp: {
+      type: String,
+      default: null,
+    },
+
+    verificationOtpExpiry: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
