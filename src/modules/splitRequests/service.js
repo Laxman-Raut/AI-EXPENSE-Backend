@@ -1,7 +1,8 @@
 const splitRequestRepository = require("./repository");
 const groupRepository = require("../groups/repository");
 const Transaction = require("../transaction/model");
-
+const { sendSplitExpenseEmail } = require("../email/emailService");
+const User = require("../auth/model");
 const getUserId = (userObj) => {
   if (!userObj) return "";
   if (typeof userObj === "object" && userObj._id) return userObj._id.toString();
@@ -77,6 +78,33 @@ const createSplitRequest = async (data, userId) => {
 
   const createdSplit = await splitRequestRepository.createSplitRequest(data);
 
+  // Send Email to all participants except payer
+try {
+  const payer = await User.findById(payerIdStr);
+
+  for (const participant of createdSplit.participants) {
+    const participantId = getUserId(participant.user);
+
+    // Don't send email to payer
+    if (participantId === payerIdStr) continue;
+
+    const member = await User.findById(participantId);
+
+    if (!member || !member.email) continue;
+
+    await sendSplitExpenseEmail({
+      userEmail: member.email,
+      userName: member.fullName,
+      expenseTitle: createdSplit.title,
+      totalAmount: createdSplit.totalAmount,
+      yourShare: participant.amount,
+      paidBy: payer.fullName,
+      date: createdSplit.createdAt,
+    });
+  }
+} catch (error) {
+  console.error("[Split] Email sending failed:", error.message);
+}
   // Automatically record Expense transaction for the payer
   try {
     await Transaction.create({

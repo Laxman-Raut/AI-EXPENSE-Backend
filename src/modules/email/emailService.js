@@ -149,10 +149,150 @@ const sendInvoiceEmail = async ({ userEmail, userName, payment, subscription }) 
       html: htmlContent,
       attachments,
     });
-    console.log(`✅ Subscription Invoice email with PDF receipt sent successfully to ${userEmail}`);
+    console.log(` Subscription Invoice email with PDF receipt sent successfully to ${userEmail}`);
   } catch (error) {
-    console.error("❌ Failed to send Subscription Invoice email:", error);
+    console.error("Failed to send Subscription Invoice email:", error);
   }
+};
+
+ // sendsplitExpense email
+
+const sendSplitExpenseEmail = async ({
+  userEmail,
+  userName,
+  expenseTitle,
+  totalAmount,
+  yourShare,
+  paidBy,
+  date,
+}) => {
+  const formattedDate = date ? new Date(date).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }) : new Date().toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  await transporter.sendMail({
+    from: `AI Expense Tracker <${process.env.EMAIL_USER}>`,
+    to: userEmail,
+    subject: `New Shared Expense: ${expenseTitle}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Shared Expense</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #090A0F; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #090A0F; padding: 30px 10px;">
+          <tr>
+            <td align="center">
+              
+              <!-- Outer Card Container -->
+              <table role="presentation" width="100%" style="max-width: 540px; background-color: #12131A; border: 1px solid #222533; border-radius: 20px; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+                
+                <!-- Brand Header Bar -->
+                <tr>
+                  <td style="padding: 28px 32px 20px 32px; background: linear-gradient(135deg, #181926 0%, #12131A 100%); border-bottom: 1px solid #1F2233;">
+                    <table width="100%">
+                      <tr>
+                        <td>
+                          <span style="font-size: 13px; font-weight: 800; color: #8A3FFC; letter-spacing: 1.5px; text-transform: uppercase;">
+                            ✨ AI EXPENSE TRACKER
+                          </span>
+                          <h1 style="margin: 6px 0 0 0; font-size: 22px; font-weight: 800; color: #FFFFFF;">
+                            New Shared Expense
+                          </h1>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Content Area -->
+                <tr>
+                  <td style="padding: 28px 32px;">
+                    <p style="margin: 0 0 20px 0; font-size: 15px; color: #A0A5B5; line-height: 1.6;">
+                      Hello <strong style="color: #FFFFFF;">${userName}</strong>, you've been added to a new shared expense split. Here are the details:
+                    </p>
+
+                    <!-- Hero Callout Box: Your Share -->
+                    <table width="100%" style="background: linear-gradient(135deg, rgba(138,63,252,0.15) 0%, rgba(94,27,219,0.08) 100%); border: 1px solid rgba(138,63,252,0.3); border-radius: 14px; margin-bottom: 24px; text-align: center; padding: 20px;">
+                      <tr>
+                        <td>
+                          <span style="font-size: 12px; font-weight: 700; color: #A366FF; text-transform: uppercase; letter-spacing: 1px;">
+                            YOUR SHARE TO PAY
+                          </span>
+                          <div style="font-size: 34px; font-weight: 900; color: #FFFFFF; margin-top: 4px; letter-spacing: -0.5px;">
+                            ₹${yourShare}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Details Table -->
+                    <table width="100%" cellspacing="0" cellpadding="0" style="background-color: #181924; border: 1px solid #222535; border-radius: 12px; padding: 14px 18px;">
+                      
+                      <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 13px; color: #8E949A; font-weight: 600;">Expense Title</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 14px; color: #FFFFFF; font-weight: 700; text-align: right;">${expenseTitle}</td>
+                      </tr>
+
+                      <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 13px; color: #8E949A; font-weight: 600;">Paid By</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 14px; color: #FFFFFF; font-weight: 700; text-align: right;">${paidBy}</td>
+                      </tr>
+
+                      <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 13px; color: #8E949A; font-weight: 600;">Total Bill Amount</td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #222535; font-size: 14px; color: #FFFFFF; font-weight: 700; text-align: right;">₹${totalAmount}</td>
+                      </tr>
+
+                      <tr>
+                        <td style="padding: 10px 0; font-size: 13px; color: #8E949A; font-weight: 600;">Date</td>
+                        <td style="padding: 10px 0; font-size: 14px; color: #FFFFFF; font-weight: 700; text-align: right;">${formattedDate}</td>
+                      </tr>
+
+                    </table>
+
+                    <!-- CTA Call To Action Button -->
+                    <table width="100%" cellspacing="0" cellpadding="0" style="margin-top: 28px;">
+                      <tr>
+                        <td align="center">
+                          <a href="#" style="display: inline-block; background-color: #8A3FFC; color: #FFFFFF; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 16px rgba(138,63,252,0.4);">
+                            Open AI Expense Tracker
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="padding: 20px 32px; background-color: #0E0F15; border-top: 1px solid #1F2233; text-align: center;">
+                    <p style="margin: 0; font-size: 12px; color: #54595E; line-height: 1.5;">
+                      This is an automated notification from AI Expense Tracker.<br/>
+                      Please do not reply directly to this email.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `,
+  });
 };
 
 module.exports = {
@@ -161,4 +301,5 @@ module.exports = {
   sendWelcomeEmail,
   sendSubscriptionEmail,
   sendInvoiceEmail,
+  sendSplitExpenseEmail,
 };

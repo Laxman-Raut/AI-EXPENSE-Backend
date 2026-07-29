@@ -6,4 +6,5 @@ module.exports = {
   sendSupportEmail: emailModule.sendSupportEmail,
   sendWelcomeEmail: emailModule.sendWelcomeEmail,
   sendSubscriptionEmail: emailModule.sendSubscriptionEmail,
+   sendSplitExpenseEmail: emailModule.sendSplitExpenseEmail,
 };
