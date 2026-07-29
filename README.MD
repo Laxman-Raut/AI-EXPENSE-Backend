@@ -51,10 +51,10 @@ Generates NPCI compliant standard UPI payment links for split expenses:
     "success": true,
     "message": "UPI Deep Link generated successfully.",
     "data": {
-      "deepLink": "upi://pay?pa=laxman@oksbi&pn=Laxman&am=150.00&cu=INR&tn=Dinner&tr=TR172215...&mode=00",
+      "deepLink": "upi://pay?pa=laxman@dcdf&pn=Laxman&am=150.00&cu=INR&tn=Dinner&tr=TR172215...&mode=00",
       "amount": 150,
       "receiver": "Laxman Raut",
-      "upiId": "laxman@oksbi"
+      "upiId": "laxman@dnc"
     }
   }
   ```

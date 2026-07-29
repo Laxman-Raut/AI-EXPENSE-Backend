@@ -79,8 +79,10 @@ const updateSplitRequest = async (req, res, next) => {
 // Delete Split Request
 const deleteSplitRequest = async (req, res, next) => {
   try {
+    const userId = getUserId(req);
     await splitRequestService.deleteSplitRequest(
-      req.params.splitId
+      req.params.splitId,
+      userId
     );
 
     return res.status(200).json({

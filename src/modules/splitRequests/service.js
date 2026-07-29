@@ -120,14 +120,10 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
 
   // Authorization check for changing participant payment status
   if (currentUserId && updateData.participants && Array.isArray(updateData.participants)) {
-    const group = await groupRepository.getGroupById(oldSplit.group);
-    const groupOwnerId = group ? getUserId(group.createdBy) : null;
     const splitPayerId = getUserId(oldSplit.paidBy);
     const currUserStr = currentUserId.toString();
 
-    const isGroupAdmin = groupOwnerId === currUserStr;
     const isSplitCreator = splitPayerId === currUserStr;
-    const isAuthorizedAdmin = isGroupAdmin || isSplitCreator;
 
     for (const newP of updateData.participants) {
       const pUserId = getUserId(newP.user);
@@ -136,9 +132,9 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
       );
 
       if (oldP && oldP.status !== newP.status) {
-        // If modifying someone else's payment status, user MUST be Group Admin/Owner or Split Creator
-        if (pUserId !== currUserStr && !isAuthorizedAdmin) {
-          throw new Error("Only group admin or creator can mark other members as paid");
+        // If modifying someone else's payment status, user MUST be the Split Creator
+        if (pUserId !== currUserStr && !isSplitCreator) {
+          throw new Error("Only the creator of this split expense can mark members as paid");
         }
       }
     }
@@ -199,11 +195,25 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
 };
 
 // Delete
-const deleteSplitRequest = async (splitId) => {
+const deleteSplitRequest = async (splitId, currentUserId) => {
   const split = await splitRequestRepository.getSplitRequestById(splitId);
 
   if (!split) {
     throw new Error("Split request not found");
+  }
+
+  if (currentUserId) {
+    const group = await groupRepository.getGroupById(split.group);
+    const groupOwnerId = group ? getUserId(group.createdBy) : null;
+    const splitPayerId = getUserId(split.paidBy);
+    const currUserStr = currentUserId.toString();
+
+    const isGroupAdmin = groupOwnerId === currUserStr;
+    const isSplitCreator = splitPayerId === currUserStr;
+
+    if (!isSplitCreator && !isGroupAdmin) {
+      throw new Error("Only the creator of this expense or group admin can delete it");
+    }
   }
 
   return await splitRequestRepository.deleteSplitRequest(splitId);
