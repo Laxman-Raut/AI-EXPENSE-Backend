@@ -45,32 +45,36 @@ const checkAndIncrementAiLimit = async (userId, featureType) => {
 
   // 3. Reset daily usage counter if date has changed
   const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-  const userAiUsage = user.aiUsage || {};
-  const featureUsage = userAiUsage[featureType] || { used: 0, limit: 0, lastResetDate: "" };
+  const currentUsage = (user.aiUsage && user.aiUsage[featureType]) ? user.aiUsage[featureType] : { used: 0, limit: 0, lastResetDate: "" };
 
-  if (featureUsage.lastResetDate !== todayStr) {
-    featureUsage.used = 0;
-    featureUsage.lastResetDate = todayStr;
+  let currentUsed = currentUsage.used || 0;
+  let lastDate = currentUsage.lastResetDate || "";
+
+  if (lastDate !== todayStr) {
+    currentUsed = 0;
+    lastDate = todayStr;
   }
 
   // 4. Check if limit is reached (if allowedLimit > 0, enforce limit)
-  if (allowedLimit > 0 && featureUsage.used >= allowedLimit) {
+  if (allowedLimit > 0 && currentUsed >= allowedLimit) {
     const error = new Error(`Daily limit reached for ${featureTitle} on your current plan (${allowedLimit}/${allowedLimit} used). Please upgrade your plan to unlock more AI queries!`);
     error.statusCode = 403;
     error.code = "LIMIT_REACHED";
     error.allowedLimit = allowedLimit;
-    error.used = featureUsage.used;
+    error.used = currentUsed;
     throw error;
   }
 
-  // 5. Increment usage counter
-  featureUsage.used += 1;
-  featureUsage.limit = allowedLimit;
+  // 5. Increment usage counter in MongoDB
+  const newUsed = currentUsed + 1;
 
-  if (!user.aiUsage) user.aiUsage = {};
-  user.aiUsage[featureType] = featureUsage;
-  user.markModified("aiUsage");
-  await user.save();
+  await User.findByIdAndUpdate(userId, {
+    $set: {
+      [`aiUsage.${featureType}.used`]: newUsed,
+      [`aiUsage.${featureType}.limit`]: allowedLimit,
+      [`aiUsage.${featureType}.lastResetDate`]: todayStr,
+    }
+  });
 
   return true;
 };
