@@ -725,10 +725,12 @@ const getSubscriptions = async ({
 
     const subscriptions = await User.find(filter)
         .select(
-            "fullName email avatar subscription createdAt"
+            "fullName email avatar subscription createdAt updatedAt"
         )
         .sort({
-            "subscription.endDate": 1,
+            "subscription.startDate": -1,
+            "updatedAt": -1,
+            "createdAt": -1,
         })
         .skip((page - 1) * limit)
         .limit(Number(limit));
