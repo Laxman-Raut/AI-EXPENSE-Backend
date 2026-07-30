@@ -1,15 +1,19 @@
-const SplitRequest = require("../splitRequests/model");
-const User = require("../auth/model");
-const upiService = require("./service");
+const SplitRequest = require('../splitRequests/model');
+const User = require('../auth/model');
+const upiService = require('./service');
 
-const getUserId = (userObj) => {
-  if (!userObj) return "";
-  if (typeof userObj === "string") return userObj;
-  if (typeof userObj === "object") {
-    if (userObj._id) return userObj._id.toString();
-    if (userObj.id && typeof userObj.id === "string") return userObj.id;
-  }
-  return userObj.toString();
+/**
+ * Extracts a string ID from a Mongoose document, ObjectId, or plain string.
+ * Works correctly whether the field is populated (returns a document) or not
+ * (returns a raw ObjectId whose .toString() gives the hex string).
+ */
+const toStringId = (ref) => {
+  if (!ref) return '';
+  if (typeof ref === 'string') return ref;
+  // Mongoose ObjectId has a toString() that returns the 24-char hex string.
+  // A populated document has ._id which is itself an ObjectId.
+  if (ref._id) return ref._id.toString();
+  return ref.toString();
 };
 
 const generateDeepLink = async (req, res, next) => {
@@ -19,86 +23,113 @@ const generateDeepLink = async (req, res, next) => {
     if (!splitRequestId) {
       return res.status(400).json({
         success: false,
-        message: "splitRequestId is required",
+        message: 'splitRequestId is required',
       });
     }
 
-    // Find Split Request with populated references
+    // Populate both paidBy and participants.user so we get full User documents
+    // and don't have to do separate findById calls for every field.
     const splitRequest = await SplitRequest.findById(splitRequestId)
-      .populate("paidBy")
-      .populate("participants.user");
+      .populate('paidBy', 'fullName email mobile upiId')
+      .populate('participants.user', '_id');
 
     if (!splitRequest) {
       return res.status(404).json({
         success: false,
-        message: "Split request not found",
+        message: 'Split request not found',
       });
     }
 
-    const currentUserId = (req.user?.id || req.user?.userId || req.user?._id || "").toString();
+    const currentUserId = (
+      req.user?.id || req.user?.userId || req.user?._id || ''
+    ).toString();
 
-    // Find Payer (Person who paid for the split)
-    const payer = splitRequest.paidBy || (await User.findById(getUserId(splitRequest.paidBy)));
-    const payerId = payer ? getUserId(payer) : getUserId(splitRequest.paidBy);
+    const payer = splitRequest.paidBy;           // populated User doc (or null)
+    const payerId = toStringId(payer || splitRequest.paidBy);
 
-    const isCreator = Boolean(payerId && payerId === currentUserId);
-
-    // Find logged-in user in participants
-    const participant = (splitRequest.participants || []).find(
-      (p) => getUserId(p.user) === currentUserId
-    );
-
-    if (!participant && !isCreator) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not a participant of this expense.",
-      });
-    }
-
-    // Already paid check (for non-creator participants)
-    if (participant && participant.status === "paid" && !isCreator) {
+    // ─── Self-payment guard ───────────────────────────────────────────────
+    // The person who created the split (paidBy) is the one who must RECEIVE
+    // money, not pay. If they try to generate a link for themselves we block it.
+    if (payerId === currentUserId) {
       return res.status(400).json({
         success: false,
-        message: "This expense is already paid.",
+        message:
+          'You created and paid for this expense. You cannot pay yourself — wait for your group members to pay their share.',
       });
     }
 
-    // Determine target receiver (payer details)
-    const receiverName = payer ? (payer.fullName || "Expense Creator") : "Expense Creator";
-    
-    // Determine UPI ID for receiver: use explicit upiId or smart fallback
-    let receiverUpiId = payer && payer.upiId ? payer.upiId.trim() : "";
-    if (!receiverUpiId) {
-      if (payer && payer.email) {
-        receiverUpiId = `${payer.email.split("@")[0]}@upi`;
-      } else if (payer && payer.mobile) {
-        receiverUpiId = `${payer.mobile}@upi`;
-      } else {
-        receiverUpiId = "payee@upi";
-      }
+    // ─── Participant check ────────────────────────────────────────────────
+    const participant = (splitRequest.participants || []).find(
+      (p) => toStringId(p.user) === currentUserId
+    );
+
+    if (!participant) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a participant of this expense.',
+      });
     }
 
-    // Determine amount to pay safely
-    const amountToPay = (participant && participant.amount > 0)
-      ? participant.amount
-      : (splitRequest.totalAmount || splitRequest.amount || 1.00);
+    if (participant.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already paid your share for this expense.',
+      });
+    }
 
-    // Generate Deep Link
+    // ─── Receiver UPI ID resolution ───────────────────────────────────────
+    // Priority: explicit upiId on profile → fallback (we can't make up a VPA)
+    if (!payer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Expense creator details not found.',
+      });
+    }
+
+    const rawUpiId = payer.upiId ? payer.upiId.trim() : '';
+    if (!rawUpiId || !rawUpiId.includes('@')) {
+      const payerName = payer.fullName || 'Expense Creator';
+      return res.status(400).json({
+        success: false,
+        message: `${payerName} has not added a valid UPI ID in their Profile Settings. Please ask them to add their UPI ID (format: name@bank) before you can pay.`,
+        code: 'MISSING_UPI_ID',
+      });
+    }
+
+    // ─── Amount ───────────────────────────────────────────────────────────
+    const amountToPay =
+      participant.amount > 0 ? participant.amount : splitRequest.totalAmount;
+
+    if (!amountToPay || amountToPay <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment amount. Please contact the expense creator.',
+      });
+    }
+
+    // ─── Unique transaction reference ─────────────────────────────────────
+    // Combining timestamp + last 8 chars of splitRequestId gives a short,
+    // unique, collision-resistant reference that GPay/PhonePe accept.
+    const transactionRef = `${Date.now()}-${splitRequestId.toString().slice(-8)}`;
+
+    // ─── Generate NPCI-compliant deep link ────────────────────────────────
     const deepLink = upiService.generateDeepLink({
-      upiId: receiverUpiId,
-      name: receiverName,
+      upiId: rawUpiId,
+      name: payer.fullName || 'Payee',
       amount: amountToPay,
-      note: splitRequest.title || "Split Expense",
+      note: splitRequest.title || 'Split Expense',
+      transactionRef,
     });
 
     return res.status(200).json({
       success: true,
-      message: "UPI Deep Link generated successfully.",
+      message: 'UPI Deep Link generated successfully.',
       data: {
         deepLink,
         amount: amountToPay,
-        receiver: receiverName,
-        upiId: receiverUpiId,
+        receiver: payer.fullName || 'Payee',
+        upiId: rawUpiId,
+        transactionRef,
       },
     });
   } catch (error) {
@@ -106,6 +137,4 @@ const generateDeepLink = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  generateDeepLink,
-};
+module.exports = { generateDeepLink };
