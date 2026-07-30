@@ -7,20 +7,14 @@ const generateDeepLink = ({ upiId, name, amount, note }) => {
     throw new Error("Invalid amount");
   }
 
-  const formattedAmount = Number(amount).toFixed(2);
-  const transactionRef = `TR${Date.now()}`;
-
-  const deepLink =
-    `upi://pay?` +
+  return (
+    "upi://pay?" +
     `pa=${encodeURIComponent(upiId)}` +
     `&pn=${encodeURIComponent(name)}` +
-    `&am=${formattedAmount}` +
+    `&am=${Number(amount).toFixed(2)}` +
     `&cu=INR` +
-    `&tn=${encodeURIComponent(note || "AI Expense Settlement")}` +
-    `&tr=${transactionRef}` +
-    `&mode=00`;
-
-  return deepLink;
+    `&tn=${encodeURIComponent(note || "Split Expense")}`
+  );
 };
 
 module.exports = {

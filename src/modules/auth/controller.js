@@ -12,13 +12,47 @@ const {
   handleSupportRequest,
 } = require("./service");
 
+const sendRegistrationOtpController = async (req, res) => {
+  try {
+    const { fullName, email } = req.body;
+    const result = await authService.sendRegistrationOtp({ fullName, email });
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const completeRegistrationController = async (req, res) => {
+  try {
+    const { fullName, email, otp, password } = req.body;
+    const result = await authService.completeRegistration({ fullName, email, otp, password });
+    res.status(201).json({
+      success: true,
+      message: "Registration completed successfully.",
+      data: result,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const register = async (req, res) => {
   try {
     const user = await registerUser(req.body);
 
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
+      message: "Verification OTP sent successfully",
       data: user,
     });
   } catch (error) {
@@ -211,11 +245,25 @@ const resendVerificationOtpController = async (req, res) => {
   }
 };
 
+const searchUsers = async (req, res, next) => {
+  try {
+    const searchTerm = req.query.q || req.query.query || "";
+    const currentUserId = req.user?.id || req.user?.userId || req.user?._id;
+    const users = await authService.searchUsers(searchTerm, currentUserId);
 
-
+    return res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 module.exports = {
   register,
+  sendRegistrationOtp: sendRegistrationOtpController,
+  completeRegistration: completeRegistrationController,
   verifyRegistrationOtp: verifyRegistrationOtpController,
   resendVerificationOtp: resendVerificationOtpController,
   login,

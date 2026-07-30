@@ -1,6 +1,7 @@
 const cloudinary = require("../../config/cloudinary");
 const { scanReceipt } = require("./service");
 const { getSystemSettingsDoc } = require("../../config/gemini");
+const { checkAndIncrementAiLimit } = require("./aiLimitMiddleware");
 
 const scanReceiptController = async (req, res) => {
     let publicId = null;
@@ -13,6 +14,11 @@ const scanReceiptController = async (req, res) => {
                 success: false,
                 message: "AI Receipt Scanner is temporarily disabled for maintenance by the administrator."
             });
+        }
+
+        // Enforce Plan Limits set by Admin
+        if (req.user && req.user.userId) {
+            await checkAndIncrementAiLimit(req.user.userId, 'receiptScanner');
         }
 
         let buffer;
@@ -188,7 +194,15 @@ const scanReceiptController = async (req, res) => {
 
     } catch (error) {
         console.error("[AI Scanner] Fatal error:", error.message);
-        console.error("[AI Scanner] Stack:", error.stack);
+        if (error.code === 'LIMIT_REACHED' || error.statusCode === 403) {
+            return res.status(403).json({
+                success: false,
+                code: 'LIMIT_REACHED',
+                message: error.message,
+                allowedLimit: error.allowedLimit,
+                used: error.used,
+            });
+        }
         res.status(500).json({
             success: false,
             message: error.message

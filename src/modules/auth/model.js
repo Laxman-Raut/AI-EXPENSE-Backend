@@ -146,10 +146,13 @@ const userSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
-
         limit: {
           type: Number,
           default: 0,
+        },
+        lastResetDate: {
+          type: String,
+          default: "",
         },
       },
 
@@ -158,10 +161,13 @@ const userSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
-
         limit: {
           type: Number,
           default: 0,
+        },
+        lastResetDate: {
+          type: String,
+          default: "",
         },
       },
 
@@ -170,10 +176,13 @@ const userSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
-
         limit: {
           type: Number,
           default: 0,
+        },
+        lastResetDate: {
+          type: String,
+          default: "",
         },
       },
     },

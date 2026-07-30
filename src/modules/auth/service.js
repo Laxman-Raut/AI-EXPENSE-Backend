@@ -7,66 +7,129 @@ const generateOTP = require("./otp");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
 const authRepository = require("./repository");
-// Register User
-
-const registerUser = async (userData) => {
-  const { fullName, email, password } = userData;
+// Step 1: Send OTP to Email (Name + Email)
+const sendRegistrationOtp = async ({ fullName, email }) => {
   const cleanEmail = email ? email.toLowerCase().trim() : "";
+  const cleanName = fullName ? fullName.trim() : "";
 
-  // Check if user already exists
-  let existingUser = await User.findOne({ email: cleanEmail });
-
-  if (existingUser) {
-    if (existingUser.isVerified) {
-      throw new Error("Email already registered");
-    }
-    // Unverified existing user: update details, password and re-issue verification OTP
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-    existingUser.fullName = fullName.trim();
-    existingUser.password = hashedPassword;
-    existingUser.verificationOtp = otp;
-    existingUser.verificationOtpExpiry = expiry;
-    await existingUser.save();
-
-    sendVerificationOtpEmail(cleanEmail, fullName.trim(), otp).catch((err) => {
-      console.warn("[Email Service] Verification OTP email warning:", err.message);
-    });
-
-    return {
-      requiresVerification: true,
-      email: cleanEmail,
-      message: "Verification OTP sent to your email.",
-    };
+  if (!cleanName || cleanName.length < 3) {
+    throw new Error("Full name must be at least 3 characters.");
+  }
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    throw new Error("Please enter a valid email address.");
   }
 
-  // Hash password for new user
-  const hashedPassword = await bcrypt.hash(password, 10);
+  let existingUser = await User.findOne({ email: cleanEmail });
+
+  if (existingUser && existingUser.isVerified) {
+    throw new Error("Email is already registered. Please log in.");
+  }
+
   const otp = generateOTP();
   const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-  // Create user (isVerified = false by default)
-  const user = await User.create({
-    fullName: fullName.trim(),
-    email: cleanEmail,
-    password: hashedPassword,
-    isVerified: false,
-    verificationOtp: otp,
-    verificationOtpExpiry: expiry,
-  });
+  if (existingUser) {
+    existingUser.fullName = cleanName;
+    existingUser.verificationOtp = otp;
+    existingUser.verificationOtpExpiry = expiry;
+    await existingUser.save();
+  } else {
+    const dummyHash = await bcrypt.hash(crypto.randomBytes(16).toString("hex"), 10);
+    await User.create({
+      fullName: cleanName,
+      email: cleanEmail,
+      password: dummyHash,
+      isVerified: false,
+      verificationOtp: otp,
+      verificationOtpExpiry: expiry,
+    });
+  }
 
-  // Send registration verification OTP email asynchronously
-  sendVerificationOtpEmail(cleanEmail, fullName.trim(), otp).catch((err) => {
+  sendVerificationOtpEmail(cleanEmail, cleanName, otp).catch((err) => {
     console.warn("[Email Service] Verification OTP email warning:", err.message);
   });
 
   return {
-    requiresVerification: true,
+    success: true,
+    message: "Verification OTP sent to your email.",
     email: cleanEmail,
-    message: "Registration successful. Please enter the verification OTP sent to your email.",
   };
+};
+
+// Step 3: Complete Registration (Set Password + Finalize)
+const completeRegistration = async ({ fullName, email, otp, password }) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
+  const cleanOtp = otp ? otp.toString().trim() : "";
+
+  if (!password || password.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  const user = await User.findOne({ email: cleanEmail });
+  if (!user) {
+    throw new Error("User not found. Please start registration again.");
+  }
+
+  if (user.isVerified) {
+    throw new Error("Account is already registered and verified. Please log in.");
+  }
+
+  if (!user.verificationOtp || user.verificationOtp !== cleanOtp) {
+    throw new Error("Invalid verification code.");
+  }
+
+  if (!user.verificationOtpExpiry || user.verificationOtpExpiry < new Date()) {
+    throw new Error("Verification code has expired. Please request a new code.");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  user.fullName = fullName ? fullName.trim() : user.fullName;
+  user.password = hashedPassword;
+  user.isVerified = true;
+  user.verificationOtp = null;
+  user.verificationOtpExpiry = null;
+  user.lastVisitedAt = new Date();
+  await user.save();
+
+  try {
+    const freePlan = await Plan.findOne({ slug: "free", isCurrent: true }) || await Plan.findOne({ slug: "free" });
+    if (freePlan) {
+      await SubscriptionHistory.create({
+        userId: user._id,
+        planId: freePlan._id,
+        action: "activated",
+        provider: "system",
+        startDate: user.createdAt || new Date(),
+        endDate: null,
+        amount: 0,
+        currency: freePlan.currency || "INR",
+        note: "Initial user registration on Free plan.",
+      });
+    }
+  } catch (historyErr) {
+    console.warn("[Auth Service] Failed to create initial SubscriptionHistory:", historyErr.message);
+  }
+
+  sendWelcomeEmail(cleanEmail, user.fullName).catch((err) => {
+    console.warn("[Email Service] Welcome email send warning:", err.message);
+  });
+
+  const token = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
+  const userObject = user.toObject();
+  delete userObject.password;
+
+  return { token, user: userObject };
+};
+
+const registerUser = async (userData) => {
+  const { fullName, email, password } = userData;
+  return sendRegistrationOtp({ fullName, email });
 };
 
 const verifyRegistrationOtp = async ({ email, otp }) => {
@@ -453,7 +516,9 @@ const searchUsers = async (query, currentUserId) => {
 
 module.exports = {
   registerUser,
+  sendRegistrationOtp,
   verifyRegistrationOtp,
+  completeRegistration,
   resendVerificationOtp,
   loginUser,
   googleLoginUser,

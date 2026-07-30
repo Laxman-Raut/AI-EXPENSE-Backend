@@ -1,5 +1,6 @@
 const chatbotService = require("./service");
 const { getSystemSettingsDoc } = require("../../config/gemini");
+const { checkAndIncrementAiLimit } = require("../ai/aiLimitMiddleware");
 
 // Send message to AI
 const sendMessage = async (req, res) => {
@@ -21,6 +22,9 @@ const sendMessage = async (req, res) => {
       });
     }
 
+    // Enforce Plan Limits set by Admin
+    await checkAndIncrementAiLimit(req.user.userId, 'chatbot');
+
     const reply = await chatbotService.sendMessage(
       req.user.userId,
       message
@@ -32,6 +36,16 @@ const sendMessage = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (error.code === 'LIMIT_REACHED' || error.statusCode === 403) {
+      return res.status(403).json({
+        success: false,
+        code: 'LIMIT_REACHED',
+        message: error.message,
+        allowedLimit: error.allowedLimit,
+        used: error.used,
+      });
+    }
 
     res.status(500).json({
       success: false,

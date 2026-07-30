@@ -113,12 +113,6 @@ const updateDraftPlanService = async (
     throw new Error("Plan not found.");
   }
 
-  if (plan.status !== "draft") {
-    throw new Error(
-      "Only draft plans can be edited directly."
-    );
-  }
-
   if (updateData.features) {
     updateData.features = [...new Set(updateData.features)];
   }

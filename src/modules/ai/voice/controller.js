@@ -1,5 +1,6 @@
 const { parseVoiceTransaction } = require("./service");
 const { getSystemSettingsDoc } = require("../../../config/gemini");
+const { checkAndIncrementAiLimit } = require("../aiLimitMiddleware");
 
 const voiceTransactionController = async (req, res) => {
   try {
@@ -20,15 +21,12 @@ const voiceTransactionController = async (req, res) => {
       });
     }
 
-    const data = await parseVoiceTransaction(text);
-
-    // Increment user's voice scanner usage count in DB
+    // Enforce Plan Limits set by Admin
     if (req.user && req.user.userId) {
-      const User = require("../../auth/model");
-      await User.findByIdAndUpdate(req.user.userId, {
-        $inc: { "aiUsage.voiceScanner.used": 1 }
-      }).catch(err => console.error("Failed to increment voice scanner usage:", err));
+      await checkAndIncrementAiLimit(req.user.userId, 'voiceScanner');
     }
+
+    const data = await parseVoiceTransaction(text);
 
     res.status(200).json({
       success: true,
@@ -36,6 +34,16 @@ const voiceTransactionController = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (error.code === 'LIMIT_REACHED' || error.statusCode === 403) {
+      return res.status(403).json({
+        success: false,
+        code: 'LIMIT_REACHED',
+        message: error.message,
+        allowedLimit: error.allowedLimit,
+        used: error.used,
+      });
+    }
 
     res.status(500).json({
       success: false,

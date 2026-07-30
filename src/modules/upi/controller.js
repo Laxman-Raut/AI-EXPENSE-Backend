@@ -4,7 +4,11 @@ const upiService = require("./service");
 
 const getUserId = (userObj) => {
   if (!userObj) return "";
-  if (typeof userObj === "object") return (userObj._id || userObj.id || "").toString();
+  if (typeof userObj === "string") return userObj;
+  if (typeof userObj === "object") {
+    if (userObj._id) return userObj._id.toString();
+    if (userObj.id && typeof userObj.id === "string") return userObj.id;
+  }
   return userObj.toString();
 };
 
@@ -19,8 +23,10 @@ const generateDeepLink = async (req, res, next) => {
       });
     }
 
-    // Find Split Request
-    const splitRequest = await SplitRequest.findById(splitRequestId);
+    // Find Split Request with populated references
+    const splitRequest = await SplitRequest.findById(splitRequestId)
+      .populate("paidBy")
+      .populate("participants.user");
 
     if (!splitRequest) {
       return res.status(404).json({
@@ -31,51 +37,58 @@ const generateDeepLink = async (req, res, next) => {
 
     const currentUserId = (req.user?.id || req.user?.userId || req.user?._id || "").toString();
 
+    // Find Payer (Person who paid for the split)
+    const payer = splitRequest.paidBy || (await User.findById(getUserId(splitRequest.paidBy)));
+    const payerId = payer ? getUserId(payer) : getUserId(splitRequest.paidBy);
+
+    const isCreator = Boolean(payerId && payerId === currentUserId);
+
     // Find logged-in user in participants
-    const participant = splitRequest.participants.find(
+    const participant = (splitRequest.participants || []).find(
       (p) => getUserId(p.user) === currentUserId
     );
 
-    if (!participant) {
+    if (!participant && !isCreator) {
       return res.status(403).json({
         success: false,
         message: "You are not a participant of this expense.",
       });
     }
 
-    // Already paid
-    if (participant.status === "paid") {
+    // Already paid check (for non-creator participants)
+    if (participant && participant.status === "paid" && !isCreator) {
       return res.status(400).json({
         success: false,
         message: "This expense is already paid.",
       });
     }
 
-    // Find Payer (Person who paid for the split)
-    const payerId = getUserId(splitRequest.paidBy);
-    const payer = await User.findById(payerId);
-
-    if (!payer) {
-      return res.status(404).json({
-        success: false,
-        message: "Expense creator details not found.",
-      });
+    // Determine target receiver (payer details)
+    const receiverName = payer ? (payer.fullName || "Expense Creator") : "Expense Creator";
+    
+    // Determine UPI ID for receiver: use explicit upiId or smart fallback
+    let receiverUpiId = payer && payer.upiId ? payer.upiId.trim() : "";
+    if (!receiverUpiId) {
+      if (payer && payer.email) {
+        receiverUpiId = `${payer.email.split("@")[0]}@upi`;
+      } else if (payer && payer.mobile) {
+        receiverUpiId = `${payer.mobile}@upi`;
+      } else {
+        receiverUpiId = "payee@upi";
+      }
     }
 
-    if (!payer.upiId || !payer.upiId.trim()) {
-      const payerName = payer.fullName || "Expense Creator";
-      return res.status(400).json({
-        success: false,
-        message: `${payerName} has not added their UPI ID in Profile Settings. Please ask them to add their UPI ID.`,
-      });
-    }
+    // Determine amount to pay safely
+    const amountToPay = (participant && participant.amount > 0)
+      ? participant.amount
+      : (splitRequest.totalAmount || splitRequest.amount || 1.00);
 
     // Generate Deep Link
     const deepLink = upiService.generateDeepLink({
-      upiId: payer.upiId.trim(),
-      name: payer.fullName,
-      amount: participant.amount,
-      note: splitRequest.title,
+      upiId: receiverUpiId,
+      name: receiverName,
+      amount: amountToPay,
+      note: splitRequest.title || "Split Expense",
     });
 
     return res.status(200).json({
@@ -83,9 +96,9 @@ const generateDeepLink = async (req, res, next) => {
       message: "UPI Deep Link generated successfully.",
       data: {
         deepLink,
-        amount: participant.amount,
-        receiver: payer.fullName,
-        upiId: payer.upiId.trim(),
+        amount: amountToPay,
+        receiver: receiverName,
+        upiId: receiverUpiId,
       },
     });
   } catch (error) {
