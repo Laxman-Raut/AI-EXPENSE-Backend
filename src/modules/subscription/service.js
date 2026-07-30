@@ -90,8 +90,8 @@ const getSubscription = async (userId) => {
   const sub = user.subscription;
   let planLimits = null;
 
-  // Fetch the plan document's limits for active paid subscribers
-  if (sub && sub.plan && sub.plan !== 'free' && sub.status === 'active') {
+  // Fetch the plan document's limits for all user plans (free & paid)
+  if (sub && sub.plan) {
     const planDoc = await Plan.findOne({ slug: sub.plan, isCurrent: true })
                   || await Plan.findOne({ slug: sub.plan });
     if (planDoc && planDoc.limits) {
