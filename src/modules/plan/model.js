@@ -125,6 +125,10 @@ const planSchema = new mongoose.Schema(
                 type: Number,
                 default: 7,
             },
+            enableSplitBill: {
+                type: Boolean,
+                default: true,
+            },
         },
 
         createdBy: {

@@ -1633,6 +1633,9 @@ const updatePlanLimits = async (planId, limitsData) => {
         receiptScannerLimit: Number(limitsData.receiptScannerLimit ?? plan.limits?.receiptScannerLimit ?? 0),
         voiceScannerLimit: Number(limitsData.voiceScannerLimit ?? plan.limits?.voiceScannerLimit ?? 0),
         gracePeriodDays: Number(limitsData.gracePeriodDays ?? plan.limits?.gracePeriodDays ?? 7),
+        enableSplitBill: limitsData.enableSplitBill !== undefined
+            ? Boolean(limitsData.enableSplitBill)
+            : (plan.limits?.enableSplitBill ?? true),
     };
 
     await plan.save();

@@ -87,7 +87,22 @@ const getSubscription = async (userId) => {
 
   await syncUserSubscription(user);
 
-  return user.subscription;
+  const sub = user.subscription;
+  let planLimits = null;
+
+  // Fetch the plan document's limits for active paid subscribers
+  if (sub && sub.plan && sub.plan !== 'free' && sub.status === 'active') {
+    const planDoc = await Plan.findOne({ slug: sub.plan, isCurrent: true })
+                  || await Plan.findOne({ slug: sub.plan });
+    if (planDoc && planDoc.limits) {
+      planLimits = planDoc.limits;
+    }
+  }
+
+  return {
+    ...sub.toObject(),
+    planLimits: planLimits || { enableSplitBill: false },
+  };
 };
 
 const upgradeSubscription = async (userId) => {
