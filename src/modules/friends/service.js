@@ -2,8 +2,8 @@ const friendRepository = require("./repository");
 const User = require("../auth/model");
 
 const sendFriendRequest = async (requesterId, recipientId) => {
-  const reqStr = requesterId ? requesterId.toString() : "";
-  const recStr = recipientId ? recipientId.toString() : "";
+  const reqStr = typeof requesterId === 'object' && requesterId !== null ? String(requesterId._id || requesterId.id || '') : String(requesterId || '');
+  const recStr = typeof recipientId === 'object' && recipientId !== null ? String(recipientId._id || recipientId.id || '') : String(recipientId || '');
 
   // Can't send request to yourself
   if (reqStr === recStr) {

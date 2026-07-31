@@ -1,7 +1,7 @@
 const isMongoId = (id) => typeof id === "string" && /^[0-9a-fA-F]{24}$/.test(id);
 
 const validateSendFriendRequest = (req, res, next) => {
-  let { recipientId } = req.body || {};
+  let recipientId = req.body?.recipientId || req.body?.recipient || req.body?.id;
   if (typeof recipientId === "object" && recipientId !== null) {
     recipientId = recipientId._id || recipientId.id;
   }
