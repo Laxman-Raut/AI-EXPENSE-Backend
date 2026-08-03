@@ -211,6 +211,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // FCM Push Notification Token
+    fcmToken: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

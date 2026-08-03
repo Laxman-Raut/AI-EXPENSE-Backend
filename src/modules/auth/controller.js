@@ -209,6 +209,50 @@ const support = async (req, res) => {
   }
 };
 const authService = require("./service");
+const User = require("./model");
+
+// Update FCM Token for Push Notifications
+const updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    if (!fcmToken || typeof fcmToken !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Valid FCM token is required.",
+      });
+    }
+
+    await User.findByIdAndUpdate(req.user.userId, { fcmToken: fcmToken.trim() });
+
+    return res.status(200).json({
+      success: true,
+      message: "FCM token updated successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Clear FCM Token (on logout)
+const clearFcmToken = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user.userId, { fcmToken: "" });
+
+    return res.status(200).json({
+      success: true,
+      message: "FCM token cleared successfully.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 const verifyRegistrationOtpController = async (req, res) => {
   try {
@@ -275,4 +319,6 @@ module.exports = {
   resetPassword,
   support,
   searchUsers,
+  updateFcmToken,
+  clearFcmToken,
 };

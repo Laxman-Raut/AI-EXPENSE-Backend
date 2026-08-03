@@ -7,6 +7,7 @@ const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
 const generateOTP = require("../auth/otp");
 const { sendOtpEmail } = require("../email");
+const { sendBulkPushNotifications } = require("../../config/firebaseAdmin");
 
 
 
@@ -1781,7 +1782,7 @@ const getSegmentAudienceCountRepo = async (segment, specificEmail) => {
 
 const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegment = "all", specificEmail = "", adminId }) => {
     const query = buildSegmentQuery(targetSegment, specificEmail);
-    const targetUsers = await User.find(query, "_id email fullName");
+    const targetUsers = await User.find(query, "_id email fullName fcmToken");
 
     if (targetUsers.length === 0) {
         throw new Error("No users found matching the selected target segment.");
@@ -1798,6 +1799,25 @@ const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegm
     }));
 
     await Notification.insertMany(notificationsToInsert);
+
+    // Send FCM Push Notifications to all target users
+    try {
+        const pushPayloads = targetUsers
+            .filter(u => u.fcmToken && u.fcmToken.trim() !== "")
+            .map(u => ({
+                fcmToken: u.fcmToken,
+                title,
+                body,
+                data: { type: type || "system", segment: targetSegment, sentByAdmin: "true" },
+            }));
+
+        if (pushPayloads.length > 0) {
+            const pushResult = await sendBulkPushNotifications(pushPayloads);
+            console.log(`[Admin Broadcast] FCM push: ${pushResult.successCount} sent, ${pushResult.failureCount} failed.`);
+        }
+    } catch (pushErr) {
+        console.error("[Admin Broadcast] FCM push error (non-fatal):", pushErr.message);
+    }
 
     // Save Campaign Log
     const campaign = await AdminNotificationCampaign.create({

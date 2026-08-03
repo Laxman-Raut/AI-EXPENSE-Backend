@@ -14,6 +14,8 @@ const {
   resetPassword,
   support,
   searchUsers,
+  updateFcmToken,
+  clearFcmToken,
 } = require("./controller");
 
 const {
@@ -42,4 +44,9 @@ router.post("/forgot-password", forgotPassword);
 router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
 router.get("/search", authenticate, searchUsers);
+
+// FCM Push Notification Token
+router.put("/fcm-token", authenticate, updateFcmToken);
+router.delete("/fcm-token", authenticate, clearFcmToken);
+
 module.exports = router;
