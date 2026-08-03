@@ -1780,8 +1780,42 @@ const getSegmentAudienceCountRepo = async (segment, specificEmail) => {
     return await User.countDocuments(query);
 };
 
-const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegment = "all", specificEmail = "", adminId }) => {
+const sendAdminBroadcastRepo = async ({
+    title,
+    body,
+    type = "system",
+    targetSegment = "all",
+    specificEmail = "",
+    scheduleType = "immediate",
+    scheduledTime = "",
+    scheduledDate = null,
+    adminId
+}) => {
     const query = buildSegmentQuery(targetSegment, specificEmail);
+
+    // If campaign is scheduled for later (daily or specific date), don't send immediately
+    if (scheduleType === "daily" || scheduleType === "specific_date") {
+        const campaign = await AdminNotificationCampaign.create({
+            title,
+            body,
+            type: type || "system",
+            targetSegment,
+            specificEmail,
+            scheduleType,
+            scheduledTime,
+            scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+            status: scheduleType === "daily" ? "active" : "scheduled",
+            recipientCount: 0,
+            sentBy: adminId
+        });
+
+        return {
+            scheduled: true,
+            campaign
+        };
+    }
+
+    // Immediate send
     const targetUsers = await User.find(query, "_id email fullName fcmToken");
 
     if (targetUsers.length === 0) {
@@ -1819,6 +1853,8 @@ const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegm
         console.error("[Admin Broadcast] FCM push error (non-fatal):", pushErr.message);
     }
 
+    const todayStr = new Date().toISOString().split("T")[0];
+
     // Save Campaign Log
     const campaign = await AdminNotificationCampaign.create({
         title,
@@ -1826,7 +1862,11 @@ const sendAdminBroadcastRepo = async ({ title, body, type = "system", targetSegm
         type: type || "system",
         targetSegment,
         specificEmail,
+        scheduleType: "immediate",
+        status: "sent",
         recipientCount: targetUsers.length,
+        lastRunAt: new Date(),
+        lastRunDate: todayStr,
         sentBy: adminId
     });
 
@@ -1840,6 +1880,18 @@ const getAdminCampaignsRepo = async () => {
     return await AdminNotificationCampaign.find()
         .populate("sentBy", "fullName email")
         .sort({ createdAt: -1 });
+};
+
+const updateCampaignStatusRepo = async (campaignId, status) => {
+    return await AdminNotificationCampaign.findByIdAndUpdate(
+        campaignId,
+        { status },
+        { new: true }
+    );
+};
+
+const deleteCampaignRepo = async (campaignId) => {
+    return await AdminNotificationCampaign.findByIdAndDelete(campaignId);
 };
 
 module.exports = {
@@ -1886,4 +1938,6 @@ module.exports = {
     getSegmentAudienceCountRepo,
     sendAdminBroadcastRepo,
     getAdminCampaignsRepo,
+    updateCampaignStatusRepo,
+    deleteCampaignRepo,
 };

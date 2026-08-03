@@ -29,6 +29,8 @@ const {
    getSegmentAudienceCountCtrl,
    sendAdminBroadcastCtrl,
    getAdminCampaignsCtrl,
+   updateCampaignStatusCtrl,
+   deleteCampaignCtrl,
    getAdminSystemNotificationsCtrl,
    markAdminNotificationReadCtrl,
    deleteAdminNotificationCtrl,
@@ -292,6 +294,20 @@ router.get(
   authenticate,
   requireAdmin,
   getAdminCampaignsCtrl
+);
+
+router.patch(
+  "/notifications/campaigns/:id/status",
+  authenticate,
+  requireAdmin,
+  updateCampaignStatusCtrl
+);
+
+router.delete(
+  "/notifications/campaigns/:id",
+  authenticate,
+  requireAdmin,
+  deleteCampaignCtrl
 );
 
 router.get(

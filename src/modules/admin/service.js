@@ -407,6 +407,19 @@ const getAdminCampaignsService = async () => {
     return await getAdminCampaignsRepo();
 };
 
+const {
+    updateCampaignStatusRepo,
+    deleteCampaignRepo,
+} = require("./repository");
+
+const updateCampaignStatusService = async (campaignId, status) => {
+    return await updateCampaignStatusRepo(campaignId, status);
+};
+
+const deleteCampaignService = async (campaignId) => {
+    return await deleteCampaignRepo(campaignId);
+};
+
 module.exports = {
     getDashboardService,
     getUsersService,
@@ -434,4 +447,6 @@ module.exports = {
     getSegmentAudienceCountService,
     sendAdminBroadcastService,
     getAdminCampaignsService,
+    updateCampaignStatusService,
+    deleteCampaignService,
 };

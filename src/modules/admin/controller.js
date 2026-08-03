@@ -602,7 +602,19 @@ const getSegmentAudienceCountCtrl = async (req, res) => {
 
 const sendAdminBroadcastCtrl = async (req, res) => {
   try {
-    const { title, body, type, category, targetSegment, segment, specificEmail, email } = req.body;
+    const {
+      title,
+      body,
+      type,
+      category,
+      targetSegment,
+      segment,
+      specificEmail,
+      email,
+      scheduleType = "immediate",
+      scheduledTime = "",
+      scheduledDate = null,
+    } = req.body;
 
     if (!title || !body) {
       return res.status(400).json({
@@ -616,9 +628,28 @@ const sendAdminBroadcastCtrl = async (req, res) => {
     const resolvedEmail = specificEmail || email || "";
 
     const result = await sendAdminBroadcastService(
-      { title, body, type: resolvedType, targetSegment: resolvedSegment, specificEmail: resolvedEmail },
+      {
+        title,
+        body,
+        type: resolvedType,
+        targetSegment: resolvedSegment,
+        specificEmail: resolvedEmail,
+        scheduleType,
+        scheduledTime,
+        scheduledDate,
+      },
       req.user.userId
     );
+
+    if (result.scheduled) {
+      return res.status(200).json({
+        success: true,
+        message: scheduleType === "daily"
+          ? `Campaign scheduled to send daily at ${scheduledTime}.`
+          : `Campaign scheduled for ${new Date(scheduledDate).toLocaleString()}.`,
+        data: result
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -639,6 +670,40 @@ const getAdminCampaignsCtrl = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: campaigns
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const updateCampaignStatusCtrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const campaign = await updateCampaignStatusService(id, status);
+    return res.status(200).json({
+      success: true,
+      message: `Campaign status updated to ${status}.`,
+      data: campaign
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+const deleteCampaignCtrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteCampaignService(id);
+    return res.status(200).json({
+      success: true,
+      message: "Campaign deleted successfully."
     });
   } catch (error) {
     return res.status(500).json({
@@ -742,6 +807,8 @@ module.exports = {
       getSegmentAudienceCountCtrl,
       sendAdminBroadcastCtrl,
       getAdminCampaignsCtrl,
+      updateCampaignStatusCtrl,
+      deleteCampaignCtrl,
       getAdminSystemNotificationsCtrl,
       markAdminNotificationReadCtrl,
       deleteAdminNotificationCtrl,
