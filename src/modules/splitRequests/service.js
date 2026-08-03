@@ -40,6 +40,12 @@ const createSplitRequest = async (data, userId) => {
   const totalAmt = Number(data.totalAmount || data.amount || 0);
   data.totalAmount = totalAmt;
 
+  // Determine currency from payer if missing
+  const payerDoc = await User.findById(payerIdStr);
+  if (!data.currency) {
+    data.currency = payerDoc?.currency || "INR";
+  }
+
   const type = data.splitType || "equal";
 
   if (type === "equal") {
@@ -80,7 +86,7 @@ const createSplitRequest = async (data, userId) => {
 
   // Send Email to all participants except payer
 try {
-  const payer = await User.findById(payerIdStr);
+  const payer = payerDoc || await User.findById(payerIdStr);
 
   for (const participant of createdSplit.participants) {
     const participantId = getUserId(participant.user);
@@ -113,6 +119,7 @@ try {
       category: "Split Expense",
       description: `Paid for "${data.title}" in group`,
       amount: totalAmt,
+      currency: createdSplit.currency || "INR",
       paymentMethod: "UPI",
       transactionDate: new Date(),
       note: `Split Request ID: ${createdSplit._id}`,

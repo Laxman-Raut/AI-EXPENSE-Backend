@@ -38,6 +38,11 @@ const splitRequestSchema = new mongoose.Schema(
       default: "equal",
     },
 
+    currency: {
+      type: String,
+      default: "INR",
+    },
+
     dueDate: {
       type: Date,
       default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days from creation

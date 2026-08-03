@@ -32,6 +32,11 @@ const transactionSchema = new mongoose.Schema(
       min: 1,
     },
 
+    currency: {
+      type: String,
+      default: "INR",
+    },
+
     paymentMethod: {
       type: String,
       enum: [
