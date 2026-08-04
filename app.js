@@ -79,6 +79,7 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/split-requests", splitRequestRoutes);
 app.use("/api/upi", upiRoutes);
 app.use("/api/banks", bankRoutes);
+app.use("/api/bank", bankRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({
