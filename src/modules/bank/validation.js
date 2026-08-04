@@ -5,6 +5,8 @@ const createBankSchema = Joi.object({
     "string.empty": "Bank name is required",
   }),
 
+  bankCode: Joi.string().trim().uppercase().allow("", null),
+
   accountHolderName: Joi.string().trim().required().messages({
     "string.empty": "Account holder name is required",
   }),
@@ -13,14 +15,13 @@ const createBankSchema = Joi.object({
     .pattern(/^[0-9]{9,18}$/)
     .required()
     .messages({
-      "string.pattern.base":
-        "Account number must be between 9 and 18 digits",
+      "string.pattern.base": "Account number must be between 9 and 18 digits",
       "string.empty": "Account number is required",
     }),
 
   accountType: Joi.string()
     .valid("Savings", "Current")
-    .required(),
+    .default("Savings"),
 
   nickname: Joi.string().allow("", null),
 
@@ -37,6 +38,8 @@ const createBankSchema = Joi.object({
 const updateBankSchema = Joi.object({
   bankName: Joi.string().trim(),
 
+  bankCode: Joi.string().trim().uppercase().allow("", null),
+
   accountHolderName: Joi.string().trim(),
 
   accountNumber: Joi.string().pattern(/^[0-9]{9,18}$/),
@@ -51,13 +54,6 @@ const updateBankSchema = Joi.object({
 
   isPrimary: Joi.boolean(),
 });
-bankCode: Joi.string()
-  .trim()
-  .uppercase()
-  .required()
-  .messages({
-    "string.empty": "Bank code is required",
-  }),
 
 module.exports = {
   createBankSchema,

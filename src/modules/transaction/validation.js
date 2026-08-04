@@ -21,6 +21,8 @@ const transactionSchema = z.object({
 
   transactionDate: z.string().optional(),
 
+  bankAccount: z.string().nullable().optional(),
+
   note: z.string().optional(),
 });
 

@@ -14,12 +14,13 @@ const bankSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
     bankCode: {
-  type: String,
-  required: true,
-  trim: true,
-  uppercase: true,
-},
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+    },
 
     accountHolderName: {
       type: String,
