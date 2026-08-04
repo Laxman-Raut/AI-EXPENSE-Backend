@@ -1,4 +1,8 @@
 const { 
+  generateTokenPair,
+  refreshAccessToken,
+  revokeRefreshToken,
+  revokeAllUserTokens,
   registerUser,
   verifyRegistrationOtp: verifyRegistrationOtpService,
   resendVerificationOtp: resendVerificationOtpService,
@@ -68,7 +72,47 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const result = await loginUser(req.body);
+    const isDashboard = req.headers["x-client-type"] === "dashboard";
 
+    if (isDashboard) {
+      // Dashboard: Generate short-lived access + refresh token pair, set as HttpOnly cookies
+      const tokenPair = await generateTokenPair(
+        result.user,
+        req.headers["user-agent"] || ""
+      );
+
+      const isProduction = process.env.NODE_ENV === "production";
+
+      // Set access token cookie (15 minutes)
+      res.cookie("access_token", tokenPair.accessToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "strict" : "lax",
+        maxAge: tokenPair.accessTokenExpiresIn,
+        path: "/",
+      });
+
+      // Set refresh token cookie (30 days, restricted path)
+      res.cookie("refresh_token", tokenPair.refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "strict" : "lax",
+        maxAge: tokenPair.refreshTokenExpiresIn,
+        path: "/api",
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Login Successful",
+        data: {
+          user: result.user,
+          // Still include token in body for backward compat, but Dashboard should ignore it
+          token: tokenPair.accessToken,
+        },
+      });
+    }
+
+    // Mobile App: Return token in body only (no cookies)
     res.status(200).json({
       success: true,
       message: "Login API working",
@@ -304,7 +348,92 @@ const searchUsers = async (req, res, next) => {
   }
 };
 
+// Refresh Token Controller — issues new token pair from refresh token cookie
+const refreshTokenCtrl = async (req, res) => {
+  try {
+    const rawRefreshToken = req.cookies?.refresh_token;
+
+    if (!rawRefreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "No refresh token provided.",
+      });
+    }
+
+    const result = await refreshAccessToken(
+      rawRefreshToken,
+      req.headers["user-agent"] || ""
+    );
+
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // Set new access token cookie
+    res.cookie("access_token", result.accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
+      maxAge: result.accessTokenExpiresIn,
+      path: "/",
+    });
+
+    // Set new refresh token cookie (rotation)
+    res.cookie("refresh_token", result.refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
+      maxAge: result.refreshTokenExpiresIn,
+      path: "/api",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed successfully.",
+      data: { user: result.user },
+    });
+  } catch (error) {
+    // Clear cookies on refresh failure
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api" });
+
+    return res.status(401).json({
+      success: false,
+      message: error.message || "Failed to refresh token.",
+    });
+  }
+};
+
+// Logout Controller — revokes refresh token and clears cookies
+const logoutCtrl = async (req, res) => {
+  try {
+    const rawRefreshToken = req.cookies?.refresh_token;
+
+    if (rawRefreshToken) {
+      await revokeRefreshToken(rawRefreshToken);
+    }
+
+    // Clear both cookies
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    // Even on error, clear cookies
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out.",
+    });
+  }
+};
+
 module.exports = {
+  refreshTokenCtrl,
+  logoutCtrl,
   register,
   sendRegistrationOtp: sendRegistrationOtpController,
   completeRegistration: completeRegistrationController,

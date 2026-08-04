@@ -1,5 +1,7 @@
 const express = require("express");
 const {
+  refreshTokenCtrl,
+  logoutCtrl,
   register,
   sendRegistrationOtp,
   completeRegistration,
@@ -34,6 +36,8 @@ router.post("/resend-registration-otp", resendVerificationOtp);
 router.post("/complete-registration", completeRegistration);
 
 router.post("/login", validateLogin, login);
+router.post("/refresh-token", refreshTokenCtrl);
+router.post("/logout", authenticate, logoutCtrl);
 router.post("/google", googleLogin);
 
 router.get("/me", authenticate, profile);

@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendOtpEmail, sendSupportEmail, sendWelcomeEmail, sendVerificationOtpEmail } = require("../email");
+const RefreshToken = require("./refreshToken.model");
 const generateOTP = require("./otp");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
@@ -514,7 +515,111 @@ const searchUsers = async (query, currentUserId) => {
 };
 
 
+// Generate a cryptographically secure random token
+const generateSecureToken = () => {
+  return crypto.randomBytes(40).toString("hex");
+};
+
+// Generate Access + Refresh token pair for Dashboard sessions
+const generateTokenPair = async (user, userAgent = "") => {
+  // Short-lived access token (15 minutes)
+  const accessToken = jwt.sign(
+    { userId: user._id, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "15m" }
+  );
+
+  // Long-lived refresh token (30 days)
+  const rawRefreshToken = generateSecureToken();
+  const refreshTokenHash = await bcrypt.hash(rawRefreshToken, 10);
+
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  await RefreshToken.create({
+    userId: user._id,
+    tokenHash: refreshTokenHash,
+    expiresAt,
+    userAgent,
+  });
+
+  return {
+    accessToken,
+    refreshToken: rawRefreshToken,
+    accessTokenExpiresIn: 15 * 60 * 1000, // 15 minutes in ms
+    refreshTokenExpiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
+  };
+};
+
+// Validate refresh token and rotate (issue new pair, invalidate old)
+const refreshAccessToken = async (rawRefreshToken, userAgent = "") => {
+  if (!rawRefreshToken) {
+    throw new Error("Refresh token is required.");
+  }
+
+  // Find all non-expired refresh tokens and check against hash
+  const storedTokens = await RefreshToken.find({
+    expiresAt: { $gt: new Date() },
+  });
+
+  let matchedToken = null;
+  for (const stored of storedTokens) {
+    const isMatch = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
+    if (isMatch) {
+      matchedToken = stored;
+      break;
+    }
+  }
+
+  if (!matchedToken) {
+    throw new Error("Invalid or expired refresh token.");
+  }
+
+  // Get the user
+  const user = await User.findById(matchedToken.userId).select("-password");
+  if (!user) {
+    await RefreshToken.deleteOne({ _id: matchedToken._id });
+    throw new Error("User not found.");
+  }
+
+  // Delete the old refresh token (rotation — one-time use)
+  await RefreshToken.deleteOne({ _id: matchedToken._id });
+
+  // Generate new token pair
+  const newTokenPair = await generateTokenPair(user, userAgent);
+
+  return {
+    ...newTokenPair,
+    user,
+  };
+};
+
+// Revoke a specific refresh token
+const revokeRefreshToken = async (rawRefreshToken) => {
+  if (!rawRefreshToken) return;
+
+  const storedTokens = await RefreshToken.find({
+    expiresAt: { $gt: new Date() },
+  });
+
+  for (const stored of storedTokens) {
+    const isMatch = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
+    if (isMatch) {
+      await RefreshToken.deleteOne({ _id: stored._id });
+      return;
+    }
+  }
+};
+
+// Revoke ALL refresh tokens for a user (force logout everywhere)
+const revokeAllUserTokens = async (userId) => {
+  await RefreshToken.deleteMany({ userId });
+};
+
 module.exports = {
+  generateTokenPair,
+  refreshAccessToken,
+  revokeRefreshToken,
+  revokeAllUserTokens,
   registerUser,
   sendRegistrationOtp,
   verifyRegistrationOtp,
