@@ -18,8 +18,8 @@ const {
 
 const sendRegistrationOtpController = async (req, res) => {
   try {
-    const { fullName, email } = req.body;
-    const result = await authService.sendRegistrationOtp({ fullName, email });
+    const { fullName, email, role } = req.body;
+    const result = await authService.sendRegistrationOtp({ fullName, email, role });
     res.status(200).json({
       success: true,
       message: result.message,
@@ -35,8 +35,8 @@ const sendRegistrationOtpController = async (req, res) => {
 
 const completeRegistrationController = async (req, res) => {
   try {
-    const { fullName, email, otp, password } = req.body;
-    const result = await authService.completeRegistration({ fullName, email, otp, password });
+    const { fullName, email, otp, password, role } = req.body;
+    const result = await authService.completeRegistration({ fullName, email, otp, password, role });
     res.status(201).json({
       success: true,
       message: "Registration completed successfully.",

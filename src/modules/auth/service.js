@@ -9,9 +9,17 @@ const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
 const authRepository = require("./repository");
 // Step 1: Send OTP to Email (Name + Email)
-const sendRegistrationOtp = async ({ fullName, email }) => {
+const sendRegistrationOtp = async ({ fullName, email, role }) => {
   const cleanEmail = email ? email.toLowerCase().trim() : "";
   const cleanName = fullName ? fullName.trim() : "";
+  const requestedRole = (role && ["user", "admin", "super_admin"].includes(role)) ? role : "user";
+
+  if (requestedRole === "super_admin") {
+    const existingSuperAdmin = await User.findOne({ role: "super_admin", email: { $ne: cleanEmail } });
+    if (existingSuperAdmin) {
+      throw new Error("A Super Admin account already exists. Only one Super Admin is allowed.");
+    }
+  }
 
   if (!cleanName || cleanName.length < 3) {
     throw new Error("Full name must be at least 3 characters.");
@@ -31,6 +39,7 @@ const sendRegistrationOtp = async ({ fullName, email }) => {
 
   if (existingUser) {
     existingUser.fullName = cleanName;
+    if (role) existingUser.role = requestedRole;
     existingUser.verificationOtp = otp;
     existingUser.verificationOtpExpiry = expiry;
     await existingUser.save();
@@ -40,6 +49,7 @@ const sendRegistrationOtp = async ({ fullName, email }) => {
       fullName: cleanName,
       email: cleanEmail,
       password: dummyHash,
+      role: requestedRole,
       isVerified: false,
       verificationOtp: otp,
       verificationOtpExpiry: expiry,
@@ -58,7 +68,7 @@ const sendRegistrationOtp = async ({ fullName, email }) => {
 };
 
 // Step 3: Complete Registration (Set Password + Finalize)
-const completeRegistration = async ({ fullName, email, otp, password }) => {
+const completeRegistration = async ({ fullName, email, otp, password, role }) => {
   const cleanEmail = email ? email.toLowerCase().trim() : "";
   const cleanOtp = otp ? otp.toString().trim() : "";
 
@@ -83,10 +93,19 @@ const completeRegistration = async ({ fullName, email, otp, password }) => {
     throw new Error("Verification code has expired. Please request a new code.");
   }
 
+  const targetRole = (role && ["user", "admin", "super_admin"].includes(role)) ? role : user.role;
+  if (targetRole === "super_admin") {
+    const existingSuperAdmin = await User.findOne({ role: "super_admin", _id: { $ne: user._id } });
+    if (existingSuperAdmin) {
+      throw new Error("A Super Admin account already exists. Only one Super Admin is allowed.");
+    }
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   user.fullName = fullName ? fullName.trim() : user.fullName;
   user.password = hashedPassword;
+  user.role = targetRole || "user";
   user.isVerified = true;
   user.verificationOtp = null;
   user.verificationOtpExpiry = null;
@@ -129,8 +148,8 @@ const completeRegistration = async ({ fullName, email, otp, password }) => {
 };
 
 const registerUser = async (userData) => {
-  const { fullName, email, password } = userData;
-  return sendRegistrationOtp({ fullName, email });
+  const { fullName, email, password, role } = userData;
+  return sendRegistrationOtp({ fullName, email, role });
 };
 
 const verifyRegistrationOtp = async ({ email, otp }) => {
@@ -302,7 +321,7 @@ const loginUser = async ({ email, password }) => {
 
 // Google / Firebase Login User
 
-const googleLoginUser = async ({ email, fullName, photoUrl, googleId }) => {
+const googleLoginUser = async ({ email, fullName, photoUrl, googleId, role }) => {
   if (!email) {
     throw new Error("Email is required for Google Authentication");
   }
@@ -311,6 +330,14 @@ const googleLoginUser = async ({ email, fullName, photoUrl, googleId }) => {
   let user = await User.findOne({ email: cleanEmail });
 
   if (!user) {
+    const requestedRole = (role && ["user", "admin", "super_admin"].includes(role)) ? role : "user";
+    if (requestedRole === "super_admin") {
+      const existingSuperAdmin = await User.findOne({ role: "super_admin", email: { $ne: cleanEmail } });
+      if (existingSuperAdmin) {
+        throw new Error("A Super Admin account already exists. Only one Super Admin is allowed.");
+      }
+    }
+
     // Generate random secure password for Google users
     const randomPassword = crypto.randomBytes(16).toString("hex");
     const hashedPassword = await bcrypt.hash(randomPassword, 10);
@@ -319,6 +346,7 @@ const googleLoginUser = async ({ email, fullName, photoUrl, googleId }) => {
       fullName: (fullName || "Google User").trim(),
       email: cleanEmail,
       password: hashedPassword,
+      role: requestedRole,
       isVerified: true,
       avatar: {
         url: photoUrl || "",
@@ -405,6 +433,17 @@ const updateProfile = async (userId, updateData) => {
   if (updateData.categoryBudgets !== undefined) allowedUpdates.categoryBudgets = updateData.categoryBudgets;
   if (updateData.avatar !== undefined) {
     allowedUpdates.avatar = typeof updateData.avatar === "string" ? { url: updateData.avatar } : updateData.avatar;
+  }
+  if (updateData.role !== undefined) {
+    if (updateData.role === "super_admin") {
+      const existingSuperAdmin = await User.findOne({ role: "super_admin", _id: { $ne: userId } });
+      if (existingSuperAdmin) {
+        throw new Error("A Super Admin account already exists. Only one Super Admin is allowed.");
+      }
+    }
+    if (["user", "admin", "super_admin"].includes(updateData.role)) {
+      allowedUpdates.role = updateData.role;
+    }
   }
 
   const user = await User.findByIdAndUpdate(
