@@ -22,6 +22,7 @@ const friendRoutes = require("./src/modules/friends/routes");
 const groupRoutes = require("./src/modules/groups/routes");
 const splitRequestRoutes = require("./src/modules/splitRequests/routes");
 const upiRoutes = require("./src/modules/upi/routes");
+const bankRoutes = require("./src/modules/bank/routes");
 const app = express();
 
 // Middleware
@@ -59,6 +60,7 @@ app.use("/api/users", friendRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/split-requests", splitRequestRoutes);
 app.use("/api/upi", upiRoutes);
+app.use("/api/banks", bankRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({
