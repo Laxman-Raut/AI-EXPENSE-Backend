@@ -1,33 +1,39 @@
 const express = require("express");
 const router = express.Router();
+const authenticate = require("../auth/auth.middleware");
 const controller = require("./controller");
-const authMiddleware = require("../auth/auth.middleware");
+const {
+  createJarSchema,
+  updateJarSchema,
+  depositSchema,
+  withdrawSchema,
+  transferSchema,
+  validateRequest,
+} = require("./validation");
 
-// Get all savings jars & summary
-router.get("/", authMiddleware, controller.getJarsCtrl);
+// All routes require authentication
+router.use(authenticate);
 
-// AI Suggestions (must come before /:id)
-router.get("/suggestions", authMiddleware, controller.getAISuggestionsCtrl);
+// List & Summary
+router.get("/", controller.getJars);
 
-// Create savings jar
-router.post("/", authMiddleware, controller.createJarCtrl);
+// AI Suggestions
+router.get("/suggestions", controller.getAISuggestions);
 
-// Transfer money between jars
-router.post("/transfer", authMiddleware, controller.transferCtrl);
+// Create Jar
+router.post("/", validateRequest(createJarSchema), controller.createJar);
 
-// Single jar details
-router.get("/:id", authMiddleware, controller.getJarByIdCtrl);
+// Transfer between Jars
+router.post("/transfer", validateRequest(transferSchema), controller.transfer);
 
-// Update jar
-router.patch("/:id", authMiddleware, controller.updateJarCtrl);
+// Single Jar Operations
+router.get("/:id", controller.getJarById);
+router.patch("/:id", validateRequest(updateJarSchema), controller.updateJar);
+router.delete("/:id", controller.deleteJar);
 
-// Delete jar
-router.delete("/:id", authMiddleware, controller.deleteJarCtrl);
+// Deposit & Withdraw
+router.post("/:id/deposit", validateRequest(depositSchema), controller.deposit);
+router.post("/:id/withdraw", validateRequest(withdrawSchema), controller.withdraw);
 
-// Deposit funds
-router.post("/:id/deposit", authMiddleware, controller.depositCtrl);
-
-// Withdraw funds
-router.post("/:id/withdraw", authMiddleware, controller.withdrawCtrl);
 
 module.exports = router;
