@@ -108,9 +108,9 @@ const generateDeepLink = async (req, res, next) => {
     }
 
     // ─── Unique transaction reference ─────────────────────────────────────
-    // Combining timestamp + last 8 chars of splitRequestId gives a short,
-    // unique, collision-resistant reference that GPay/PhonePe accept.
-    const transactionRef = `${Date.now()}-${splitRequestId.toString().slice(-8)}`;
+    // Combining prefix + timestamp + last 8 alphanumeric chars of splitRequestId gives a short,
+    // unique, collision-resistant reference that GPay/PhonePe accept (must be strictly alphanumeric).
+    const transactionRef = `TR${Date.now()}${splitRequestId.toString().replace(/[^a-zA-Z0-9]/g, '').slice(-8)}`;
 
     // ─── Generate NPCI-compliant deep link ────────────────────────────────
     const deepLink = upiService.generateDeepLink({
