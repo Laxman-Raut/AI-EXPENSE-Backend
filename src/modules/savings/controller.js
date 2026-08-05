@@ -34,7 +34,7 @@ const getJarByIdCtrl = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    const data = await getJarByIdService(id, userId);
+    const data = await getJarByIdService(userId, id);
 
     return res.status(200).json({
       success: true,
@@ -70,7 +70,7 @@ const updateJarCtrl = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    const data = await updateJarService(id, userId, req.body);
+    const data = await updateJarService(userId, id, req.body);
 
     return res.status(200).json({
       success: true,
@@ -89,7 +89,7 @@ const deleteJarCtrl = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    await deleteJarService(id, userId);
+    await deleteJarService(userId, id);
 
     return res.status(200).json({
       success: true,
@@ -108,7 +108,7 @@ const depositCtrl = async (req, res, next) => {
     const userId = req.user.userId || req.user.id;
     const { id } = req.params;
     const { amount, notes } = req.body;
-    const data = await depositToJarService(id, userId, amount, notes);
+    const data = await depositToJarService(userId, id, amount, notes);
 
     return res.status(200).json({
       success: true,
@@ -128,7 +128,7 @@ const withdrawCtrl = async (req, res, next) => {
     const userId = req.user.userId || req.user.id;
     const { id } = req.params;
     const { amount, notes } = req.body;
-    const data = await withdrawFromJarService(id, userId, amount, notes);
+    const data = await withdrawFromJarService(userId, id, amount, notes);
 
     return res.status(200).json({
       success: true,
