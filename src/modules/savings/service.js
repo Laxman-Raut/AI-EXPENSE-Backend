@@ -345,4 +345,14 @@ module.exports = {
   transfer,
   getAISuggestions,
 
+  // Aliases
+  getSavingsJarsService: getJars,
+  getJarByIdService: getJarById,
+  createJarService: createJar,
+  updateJarService: updateJar,
+  deleteJarService: deleteJar,
+  depositToJarService: deposit,
+  withdrawFromJarService: withdraw,
+  transferMoneyService: transfer,
+  getAISuggestionsService: getAISuggestions,
 };
