@@ -1,4 +1,5 @@
 const Transaction = require("./model");
+const Bank = require("../bank/model");
 const User = require("../auth/model");
 const { createNotification } = require("../notification/service");
 
@@ -87,10 +88,14 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
 
 // Create Transaction
 const createTransaction = async (transactionData, userId) => {
-  const transaction = await Transaction.create({
+  let transaction = await Transaction.create({
     ...transactionData,
     user: userId,
   });
+
+  if (transaction.bankAccount) {
+    transaction = await transaction.populate("bankAccount");
+  }
 
   try {
     // 1. Send transaction addition notification
@@ -114,16 +119,18 @@ const createTransaction = async (transactionData, userId) => {
 
 // Get All Transactions
 const getTransactions = async (userId) => {
-  return await Transaction.find({ user: userId }).sort({
-    transactionDate: -1,
-  });
+  return await Transaction.find({ user: userId })
+    .populate("bankAccount")
+    .sort({
+      transactionDate: -1,
+    });
 };
 
 const getTransactionById = async (id, userId) => {
   const transaction = await Transaction.findOne({
     _id: id,
     user: userId,
-  });
+  }).populate("bankAccount");
 
   if (!transaction) {
     throw new Error("Transaction not found");
@@ -139,7 +146,7 @@ const updateTransaction = async (id, userId, updateData) => {
       new: true,
       runValidators: true,
     }
-  );
+  ).populate("bankAccount");
 
   if (!transaction) {
     throw new Error("Transaction not found");
