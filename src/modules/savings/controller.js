@@ -1,207 +1,202 @@
-const savingsService = require("./service");
+const {
+  getSavingsJarsService,
+  getJarByIdService,
+  createJarService,
+  updateJarService,
+  deleteJarService,
+  depositToJarService,
+  withdrawFromJarService,
+  transferMoneyService,
+  getAISuggestionsService,
+} = require("./service");
 
-const getJars = async (req, res, next) => {
+const getJarsCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { status } = req.query;
-    const result = await savingsService.getJars(userId, status);
+    const result = await getSavingsJarsService(userId, status);
 
     return res.status(200).json({
       success: true,
-      message: "Savings Jars retrieved successfully",
-      data: result.jars,
-      summary: result.summary,
-    });
-  
       data: result.jars,
       summary: result.summary,
     });
   } catch (error) {
-} catch (error) {
-    next(error);
+    if (next) return next(error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const getJarById = async (req, res, next) => {
+const getJarByIdCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    const jar = await savingsService.getJarById(userId, id);
+    const data = await getJarByIdService(id, userId);
 
     return res.status(200).json({
       success: true,
-      data: jar,
+      data,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(404).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const createJar = async (req, res, next) => {
+const createJarCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const jar = await savingsService.createJar(userId, req.body);
+    const userId = req.user.userId || req.user.id;
+    const data = await createJarService(userId, req.body);
 
     return res.status(201).json({
       success: true,
-      message: "Savings Jar created successfully",
-      data: jar,
+      message: "Savings jar created successfully",
+      data,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-        code: error.code,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const updateJar = async (req, res, next) => {
+const updateJarCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    const jar = await savingsService.updateJar(userId, id, req.body);
+    const data = await updateJarService(id, userId, req.body);
 
     return res.status(200).json({
       success: true,
-      message: "Savings Jar updated successfully",
-      data: jar,
+      message: "Savings jar updated successfully",
+      data,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const deleteJar = async (req, res, next) => {
+const deleteJarCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { id } = req.params;
-    const result = await savingsService.deleteJar(userId, id);
+    await deleteJarService(id, userId);
 
     return res.status(200).json({
       success: true,
-      message: result.message,
+      message: "Savings jar deleted successfully",
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const deposit = async (req, res, next) => {
+const depositCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { id } = req.params;
     const { amount, notes } = req.body;
-
-    const jar = await savingsService.deposit(userId, id, amount, notes);
+    const data = await depositToJarService(id, userId, amount, notes);
 
     return res.status(200).json({
       success: true,
-      message: `Successfully deposited ₹${amount} into ${jar.name}`,
-      data: jar,
+      message: "Deposit successful",
+      data,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const withdraw = async (req, res, next) => {
+const withdrawCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const { id } = req.params;
     const { amount, notes } = req.body;
-
-    const jar = await savingsService.withdraw(userId, id, amount, notes);
+    const data = await withdrawFromJarService(id, userId, amount, notes);
 
     return res.status(200).json({
       success: true,
-      message: `Successfully withdrew ₹${amount} from ${jar.name}`,
-      data: jar,
+      message: "Withdrawal successful",
+      data,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const transfer = async (req, res, next) => {
+const transferCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const { fromJarId, toJarId, amount, notes } = req.body;
-
-    const result = await savingsService.transfer(userId, fromJarId, toJarId, amount, notes);
+    const userId = req.user.userId || req.user.id;
+    const result = await transferMoneyService(userId, req.body);
 
     return res.status(200).json({
       success: true,
-      message: result.message,
+      message: "Transfer completed successfully",
       data: result,
     });
   } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-    next(error);
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
-const getAISuggestions = async (req, res, next) => {
+const getAISuggestionsCtrl = async (req, res, next) => {
   try {
-    const userId = req.user.id;
-    const result = await savingsService.getAISuggestions(userId);
+    const userId = req.user.userId || req.user.id;
+    const suggestions = await getAISuggestionsService(userId);
 
-    return res.status(200).json(result);
+    return res.status(200).json({
+      success: true,
+      data: suggestions,
+    });
   } catch (error) {
-    next(error);
-  }
-};
-
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
 module.exports = {
-  getJars,
-  getJarById,
-  createJar,
-  updateJar,
-  deleteJar,
-  deposit,
-  withdraw,
-  transfer,
-  getAISuggestions,
+  getJars: getJarsCtrl,
+  getJarById: getJarByIdCtrl,
+  createJar: createJarCtrl,
+  updateJar: updateJarCtrl,
+  deleteJar: deleteJarCtrl,
+  deposit: depositCtrl,
+  withdraw: withdrawCtrl,
+  transfer: transferCtrl,
+  getAISuggestions: getAISuggestionsCtrl,
 
+  // Export aliases
+  getJarsCtrl,
+  getJarByIdCtrl,
+  createJarCtrl,
+  updateJarCtrl,
+  deleteJarCtrl,
+  depositCtrl,
+  withdrawCtrl,
+  transferCtrl,
+  getAISuggestionsCtrl,
 };
