@@ -27,6 +27,16 @@ const sendMessage = async (userId, message) => {
   // 3. Build rich financial context
   const finance = await buildFinanceContext(userId);
 
+  // Format Bank Accounts
+  const bankAccountsFormatted = finance.bankAccounts && finance.bankAccounts.length > 0
+    ? finance.bankAccounts
+        .map(
+          (b) =>
+            `- ${b.bankName} (${b.accountNumber}) [${b.accountType}]${b.isPrimary ? " [PRIMARY]" : ""}: Month Spend ₹${b.monthSpend}`
+        )
+        .join("\n")
+    : "No linked bank accounts.";
+
   // Format Category Budgets
   const catBudgetsFormatted = finance.categoryBudgets.length > 0
     ? finance.categoryBudgets
@@ -59,7 +69,7 @@ const sendMessage = async (userId, message) => {
     ? finance.transactions
         .map(
           (t) =>
-            `- ${t.date} | [${t.type.toUpperCase()}] ₹${t.amount} | ${t.category} | ${t.description} (${t.paymentMethod})`
+            `- ${t.date} | [${t.type.toUpperCase()}] ₹${t.amount} | ${t.category} | ${t.description} (${t.paymentMethod}${t.bankAccountName ? ' • ' + t.bankAccountName : ''})`
         )
         .join("\n")
     : "No recent transactions found.";
@@ -71,6 +81,11 @@ USER PROFILE & SUBSCRIPTION
 Name: ${finance.user.fullName}
 Currency: ${finance.user.currency}
 Subscription Plan: ${finance.user.subscription?.plan || "free"} (${finance.user.subscription?.status || "inactive"})
+
+====================================
+LINKED BANK ACCOUNTS & MONTHLY SPEND
+====================================
+${bankAccountsFormatted}
 
 ====================================
 MONTHLY FINANCIAL SUMMARY
@@ -124,7 +139,7 @@ Current User Message:
 ${message}
 `;
 
-  // Ask Gemini using working model gemini-3.1-flash-lite
+  // Ask Gemini using working model gemini-2.5-flash
   const client = await getGeminiClient();
   const modelName = await getGeminiModel("gemini-2.5-flash");
   const response = await client.models.generateContent({
