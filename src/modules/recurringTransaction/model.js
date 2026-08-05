@@ -47,8 +47,20 @@ const recurringTransactionSchema = new mongoose.Schema(
 
     frequency: {
       type: String,
-      enum: ["daily", "weekly", "monthly", "yearly"],
+      enum: ["daily", "weekly", "monthly", "yearly", "emi"],
       required: true,
+    },
+
+    totalInstallments: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+
+    paidInstallments: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     startDate: {
@@ -68,7 +80,7 @@ const recurringTransactionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["active", "paused"],
+      enum: ["active", "paused", "completed"],
       default: "active",
     },
 

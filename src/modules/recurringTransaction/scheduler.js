@@ -8,7 +8,7 @@ const calculateNextExecutionDate = (currentDate, frequency) => {
     next.setDate(next.getDate() + 1);
   } else if (frequency === "weekly") {
     next.setDate(next.getDate() + 7);
-  } else if (frequency === "monthly") {
+  } else if (frequency === "monthly" || frequency === "emi") {
     next.setMonth(next.getMonth() + 1);
   } else if (frequency === "yearly") {
     next.setFullYear(next.getFullYear() + 1);
@@ -35,13 +35,18 @@ const processRecurringTransactions = async () => {
       const nextDate = new Date(item.nextExecutionDate);
       const newNextDate = calculateNextExecutionDate(nextDate, item.frequency);
 
-      // Atomic lock: update nextExecutionDate only if it matches what we retrieved
-      // This prevents duplicate generation if multiple scheduler ticks or workers run concurrently
+      const isEmi = item.frequency === "emi" || item.totalInstallments > 0;
+      const newPaidCount = isEmi ? (item.paidInstallments || 0) + 1 : item.paidInstallments;
+      const isCompleted = isEmi && item.totalInstallments && newPaidCount >= item.totalInstallments;
+
+      // Atomic lock: update nextExecutionDate and paidInstallments
       const lockedItem = await RecurringTransaction.findOneAndUpdate(
         { _id: item._id, nextExecutionDate: item.nextExecutionDate },
         {
           nextExecutionDate: newNextDate,
           lastExecutedAt: now,
+          paidInstallments: newPaidCount,
+          ...(isCompleted ? { status: "completed" } : {}),
         },
         { new: true }
       );
