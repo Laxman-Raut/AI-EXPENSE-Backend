@@ -178,6 +178,58 @@ const getAISuggestionsCtrl = async (req, res, next) => {
   }
 };
 
+const getSavingsGoalCtrl = async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const progress = await savingsService.getSavingsGoalProgress(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: progress,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const setSavingsGoalCtrl = async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const result = await savingsService.setSavingsGoal(userId, req.body);
+
+    return res.status(200).json({
+      success: true,
+      message: "Savings Goal saved successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const deleteSavingsGoalCtrl = async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const result = await savingsService.deleteSavingsGoal(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getJars: getJarsCtrl,
   getJarById: getJarByIdCtrl,
@@ -188,6 +240,9 @@ module.exports = {
   withdraw: withdrawCtrl,
   transfer: transferCtrl,
   getAISuggestions: getAISuggestionsCtrl,
+  getSavingsGoal: getSavingsGoalCtrl,
+  setSavingsGoal: setSavingsGoalCtrl,
+  deleteSavingsGoal: deleteSavingsGoalCtrl,
 
   // Export aliases
   getJarsCtrl,
@@ -199,4 +254,7 @@ module.exports = {
   withdrawCtrl,
   transferCtrl,
   getAISuggestionsCtrl,
+  getSavingsGoalCtrl,
+  setSavingsGoalCtrl,
+  deleteSavingsGoalCtrl,
 };
