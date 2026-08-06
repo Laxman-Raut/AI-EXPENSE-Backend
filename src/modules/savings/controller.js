@@ -146,7 +146,8 @@ const withdrawCtrl = async (req, res, next) => {
 const transferCtrl = async (req, res, next) => {
   try {
     const userId = req.user.userId || req.user.id;
-    const result = await transferMoneyService(userId, req.body);
+    const { fromJarId, toJarId, amount, notes } = req.body;
+    const result = await transferMoneyService(userId, fromJarId, toJarId, amount, notes);
 
     return res.status(200).json({
       success: true,
