@@ -8,11 +8,17 @@ const {
   depositSchema,
   withdrawSchema,
   transferSchema,
+  savingsGoalSchema,
   validateRequest,
 } = require("./validation");
 
 // All routes require authentication
 router.use(authenticate);
+
+// Savings Goal Endpoints
+router.get("/goal", controller.getSavingsGoal);
+router.post("/goal", validateRequest(savingsGoalSchema), controller.setSavingsGoal);
+router.delete("/goal", controller.deleteSavingsGoal);
 
 // List & Summary
 router.get("/", controller.getJars);

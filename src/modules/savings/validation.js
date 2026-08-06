@@ -53,6 +53,16 @@ const transferSchema = Joi.object({
   notes: Joi.string().trim().allow("", null).default(""),
 });
 
+const savingsGoalSchema = Joi.object({
+  targetAmount: Joi.number().positive().required().messages({
+    "number.base": "Target amount must be a number",
+    "number.positive": "Target amount must be greater than 0",
+    "any.required": "Target amount is required",
+  }),
+  period: Joi.string().valid("weekly", "monthly", "yearly").default("monthly"),
+  notes: Joi.string().trim().allow("", null).default(""),
+});
+
 const validateRequest = (schema) => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
@@ -80,5 +90,6 @@ module.exports = {
   depositSchema,
   withdrawSchema,
   transferSchema,
+  savingsGoalSchema,
   validateRequest,
 };

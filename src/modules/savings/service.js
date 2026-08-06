@@ -1,4 +1,5 @@
 const SavingsJar = require("./model");
+const SavingsGoal = require("./goalModel");
 const User = require("../auth/model");
 const subscriptionService = require("../subscription/service");
 
@@ -44,6 +45,8 @@ const getJars = async (userId, statusFilter = null) => {
 
   recentTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+  const goalProgress = await getSavingsGoalProgress(userId);
+
   return {
     jars,
     summary: {
@@ -53,6 +56,7 @@ const getJars = async (userId, statusFilter = null) => {
       archivedJarsCount,
       totalJarsCount: allJars.length,
       recentTransactions: recentTransactions.slice(0, 15),
+      periodicGoal: goalProgress,
     },
   };
 };
@@ -334,6 +338,109 @@ const getAISuggestions = async (userId) => {
   };
 };
 
+/**
+ * Calculate Period Start and End Dates
+ */
+const getPeriodDates = (period) => {
+  const now = new Date();
+  let startDate, endDate;
+
+  if (period === "weekly") {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    startDate = new Date(now.setDate(diff));
+    startDate.setHours(0, 0, 0, 0);
+    endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 7);
+  } else if (period === "yearly") {
+    startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
+  } else {
+    // monthly (default)
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+  }
+
+  return { startDate, endDate };
+};
+
+/**
+ * Get User's Savings Goal & Period Progress
+ */
+const getSavingsGoalProgress = async (userId) => {
+  const goalDoc = await SavingsGoal.findOne({ user: userId });
+
+  if (!goalDoc) {
+    return {
+      hasGoal: false,
+      goal: null,
+    };
+  }
+
+  const { targetAmount, period, notes } = goalDoc;
+  const { startDate, endDate } = getPeriodDates(period);
+
+  // Sum all deposits into user's jars during this period
+  const jars = await SavingsJar.find({ user: userId });
+  let savedInPeriod = 0;
+
+  jars.forEach((jar) => {
+    (jar.transactions || []).forEach((t) => {
+      if (t.type === "deposit" && t.createdAt >= startDate && t.createdAt < endDate) {
+        savedInPeriod += t.amount || 0;
+      }
+    });
+  });
+
+  const percentage = Math.min(Math.round((savedInPeriod / targetAmount) * 100), 100);
+  const remaining = Math.max(targetAmount - savedInPeriod, 0);
+  const isGoalAchieved = savedInPeriod >= targetAmount;
+
+  return {
+    hasGoal: true,
+    goal: {
+      id: goalDoc._id,
+      targetAmount,
+      period,
+      notes,
+      savedInPeriod,
+      percentage,
+      remaining,
+      isGoalAchieved,
+      startDate,
+      endDate,
+    },
+  };
+};
+
+/**
+ * Set or Update Savings Goal
+ */
+const setSavingsGoal = async (userId, data) => {
+  const { targetAmount, period, notes } = data;
+
+  const goal = await SavingsGoal.findOneAndUpdate(
+    { user: userId },
+    {
+      targetAmount: Number(targetAmount),
+      period: period || "monthly",
+      notes: notes || "",
+    },
+    { new: true, upsert: true }
+  );
+
+  const progress = await getSavingsGoalProgress(userId);
+  return progress;
+};
+
+/**
+ * Delete Savings Goal
+ */
+const deleteSavingsGoal = async (userId) => {
+  await SavingsGoal.deleteOne({ user: userId });
+  return { success: true, message: "Savings Goal removed" };
+};
+
 module.exports = {
   getJars,
   getJarById,
@@ -344,6 +451,11 @@ module.exports = {
   withdraw,
   transfer,
   getAISuggestions,
+
+  // Savings Goal methods
+  getSavingsGoalProgress,
+  setSavingsGoal,
+  deleteSavingsGoal,
 
   // Aliases
   getSavingsJarsService: getJars,
