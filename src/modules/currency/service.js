@@ -130,8 +130,41 @@ const convertCurrency = async (amount, from, to) => {
   }
 };
 
+/**
+ * Fast in-memory / single DB query helper to get rates map
+ */
+const getRatesMap = async () => {
+  try {
+    const currencyDoc = await CurrencyRate.findOne().lean();
+    return currencyDoc?.rates || null;
+  } catch (err) {
+    console.error("Error fetching rates map:", err);
+    return null;
+  }
+};
+
+/**
+ * Pure calculation helper to convert amount using rates map
+ */
+const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) => {
+  const num = Number(amount || 0);
+  if (!num || from === to) return Number(num.toFixed(2));
+
+  // Fallback rates if DB rates not fetched yet
+  const r = rates || { USD: 1, INR: 86.5, EUR: 0.92 };
+  const fromRate = r[from] || (from === "INR" ? 86.5 : 1);
+  const toRate = r[to] || (to === "INR" ? 86.5 : 1);
+
+  const amountInUSD = from === "USD" ? num : num / fromRate;
+  const converted = to === "USD" ? amountInUSD : amountInUSD * toRate;
+
+  return Number(converted.toFixed(2));
+};
+
 module.exports = {
   fetchLatestRates,
   getRates,
+  getRatesMap,
   convertCurrency,
+  convertAmountWithRates,
 };

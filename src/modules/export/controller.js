@@ -28,10 +28,8 @@ const authenticateQuery = (req, res, next) => {
   } catch {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
-};
-
 // ─── EXCEL EXPORT (ExcelJS — actually styleable) ───────
-const buildXlsx = async (transactions, res) => {
+const buildXlsx = async (transactions, res, currencySymbol = "₹") => {
   const wb = new ExcelJS.Workbook();
   wb.creator = "AI Expense Tracker";
   wb.created = new Date();
@@ -46,7 +44,7 @@ const buildXlsx = async (transactions, res) => {
     { header: "Category", key: "category", width: 18 },
     { header: "Type", key: "type", width: 12 },
     { header: "Payment Method", key: "paymentMethod", width: 18 },
-    { header: "Amount (₹)", key: "amount", width: 14 },
+    { header: `Amount (${currencySymbol})`, key: "amount", width: 14 },
     { header: "Note", key: "note", width: 28 },
   ];
 
@@ -76,7 +74,7 @@ const buildXlsx = async (transactions, res) => {
       note: t.note || "",
     });
 
-    row.getCell("amount").numFmt = '"₹"#,##0.00;[Red]-"₹"#,##0.00';
+    row.getCell("amount").numFmt = `"${currencySymbol}"#,##0.00;[Red]-"${currencySymbol}"#,##0.00`;
     row.getCell("type").font = {
       color: { argb: isIncome ? `FF${COLORS.income}` : `FF${COLORS.expense}` },
       bold: true,
@@ -150,7 +148,7 @@ const drawFooter = (doc, pageNumber) => {
     .text(`Page ${pageNumber}`, TABLE_RIGHT - 60, 810, { width: 60, align: "right" });
 };
 
-const buildPdf = (transactions, res) => {
+const buildPdf = (transactions, res, currencySymbol = "₹") => {
   const totalIncome = transactions
     .filter((t) => t.type === "income")
     .reduce((s, t) => s + t.amount, 0);
@@ -190,7 +188,7 @@ const buildPdf = (transactions, res) => {
       .fontSize(16)
       .font("Helvetica-Bold")
       .fillColor(color)
-      .text(`₹${Math.abs(value).toLocaleString("en-IN")}`, x, boxY + 14);
+      .text(`${currencySymbol}${Math.abs(value).toLocaleString("en-IN")}`, x, boxY + 14);
   };
   summaryCell("TOTAL INCOME", totalIncome, `#${COLORS.income}`, 60);
   summaryCell("TOTAL EXPENSE", totalExpense, `#${COLORS.expense}`, 230);
@@ -245,7 +243,7 @@ const buildPdf = (transactions, res) => {
         width: TABLE_COLS[4].width,
       })
       .text(
-        `${isIncome ? "+" : "-"}₹${t.amount.toLocaleString("en-IN")}`,
+        `${isIncome ? "+" : "-"}${currencySymbol}${t.amount.toLocaleString("en-IN")}`,
         TABLE_COLS[5].x,
         rowY,
         { width: TABLE_COLS[5].width, align: "right" }
@@ -264,6 +262,9 @@ const buildPdf = (transactions, res) => {
   doc.end();
 };
 
+const User = require("../auth/model");
+const currencyService = require("../currency/service");
+
 // ─── ROUTE HANDLER ────
 // GET /api/export?format=xlsx|pdf&token=<jwt>
 const exportTransactions = async (req, res) => {
@@ -271,12 +272,23 @@ const exportTransactions = async (req, res) => {
     const { format = "xlsx" } = req.query;
     const userId = req.user.userId;
 
-    const transactions = await Transaction.find({ user: userId }).sort({
-      transactionDate: -1,
-    });
+    const user = await User.findById(userId);
+    const targetCurrency = user?.currency || "INR";
+    const rates = await currencyService.getRatesMap();
+    const symbol = targetCurrency === "USD" || targetCurrency === "$" ? "$" : "₹";
 
-    if (format === "xlsx") return buildXlsx(transactions, res);
-    if (format === "pdf") return buildPdf(transactions, res);
+    const rawTransactions = await Transaction.find({ user: userId }).sort({
+      transactionDate: -1,
+    }).lean();
+
+    const transactions = rawTransactions.map((t) => ({
+      ...t,
+      amount: currencyService.convertAmountWithRates(t.amount, t.currency || "INR", targetCurrency, rates),
+      currencySymbol: symbol,
+    }));
+
+    if (format === "xlsx") return buildXlsx(transactions, res, symbol);
+    if (format === "pdf") return buildPdf(transactions, res, symbol);
 
     return res.status(400).json({ success: false, message: "Invalid format. Use xlsx or pdf." });
   } catch (error) {

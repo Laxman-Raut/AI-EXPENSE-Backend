@@ -2,11 +2,17 @@ const SavingsJar = require("./model");
 const SavingsGoal = require("./goalModel");
 const User = require("../auth/model");
 const subscriptionService = require("../subscription/service");
+const currencyService = require("../currency/service");
 
 /**
  * Get all Savings Jars for a user with overall summary statistics
  */
 const getJars = async (userId, statusFilter = null) => {
+  const user = await User.findById(userId);
+  const targetCurrency = user?.currency || "INR";
+  const rates = await currencyService.getRatesMap();
+  const convertVal = (val) => (val ? currencyService.convertAmountWithRates(val, "INR", targetCurrency, rates) : 0);
+
   const query = { user: userId };
   if (statusFilter && ["active", "completed", "archived"].includes(statusFilter)) {
     query.status = statusFilter;
@@ -18,16 +24,33 @@ const getJars = async (userId, statusFilter = null) => {
   const completedJarsCount = allJars.filter((j) => j.status === "completed").length;
   const archivedJarsCount = allJars.filter((j) => j.status === "archived").length;
 
-  const totalSavings = allJars
+  const rawTotalSavings = allJars
     .filter((j) => j.status !== "archived")
     .reduce((sum, j) => sum + (j.currentAmount || 0), 0);
 
+  const totalSavings = convertVal(rawTotalSavings);
+
   // Filter jars if statusFilter was provided
-  const jars = statusFilter ? allJars.filter((j) => j.status === statusFilter) : allJars;
+  const rawJars = statusFilter ? allJars.filter((j) => j.status === statusFilter) : allJars;
+
+  const jars = rawJars.map((j) => {
+    const obj = j.toObject ? j.toObject() : { ...j };
+    return {
+      ...obj,
+      currentAmount: convertVal(obj.currentAmount),
+      targetAmount: obj.targetAmount ? convertVal(obj.targetAmount) : null,
+      currency: targetCurrency,
+      transactions: (obj.transactions || []).map((t) => ({
+        ...t,
+        amount: convertVal(t.amount),
+        currency: targetCurrency,
+      })),
+    };
+  });
 
   // Extract and aggregate recent transactions across all user jars
   const recentTransactions = [];
-  allJars.forEach((jar) => {
+  jars.forEach((jar) => {
     (jar.transactions || []).forEach((t) => {
       recentTransactions.push({
         _id: t._id,
@@ -36,6 +59,7 @@ const getJars = async (userId, statusFilter = null) => {
         jarIcon: jar.icon,
         jarColor: jar.color,
         amount: t.amount,
+        currency: targetCurrency,
         type: t.type,
         notes: t.notes,
         createdAt: t.createdAt,
@@ -51,6 +75,7 @@ const getJars = async (userId, statusFilter = null) => {
     jars,
     summary: {
       totalSavings,
+      currency: targetCurrency,
       activeJarsCount,
       completedJarsCount,
       archivedJarsCount,
