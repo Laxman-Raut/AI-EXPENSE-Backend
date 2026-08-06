@@ -178,6 +178,8 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
   // Check for status changes to 'paid' to generate automatic Income & Expense transactions
   if (updateData.participants && Array.isArray(updateData.participants)) {
     const oldPayerId = getUserId(oldSplit.paidBy);
+    const payerDoc = await User.findById(oldPayerId).select("fullName email");
+    const payerName = payerDoc?.fullName || "Payer";
 
     for (const newP of updateData.participants) {
       const pUserId = getUserId(newP.user);
@@ -187,6 +189,8 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
 
       if (oldP && oldP.status !== "paid" && newP.status === "paid" && pUserId !== oldPayerId) {
         const shareAmount = Number(newP.amount || oldP.amount || 0);
+        const participantDoc = await User.findById(pUserId).select("fullName email");
+        const participantName = participantDoc?.fullName || "Group Member";
 
         // 1) Record Income transaction for Payer (Reimbursement)
         try {
@@ -194,11 +198,11 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
             user: oldPayerId,
             type: "income",
             category: "Split Reimbursement",
-            description: `Received share for "${oldSplit.title}"`,
+            description: `Received share from ${participantName} for "${oldSplit.title}"`,
             amount: shareAmount,
             paymentMethod: "UPI",
             transactionDate: new Date(),
-            note: `Reimbursement for Split ID: ${splitId}`,
+            note: `Reimbursement from ${participantName} for Split ID: ${splitId}`,
           });
         } catch (err) {
           console.error("[Split] Error creating reimbursement income transaction:", err.message);
@@ -210,11 +214,11 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
             user: pUserId,
             type: "expense",
             category: "Split Expense",
-            description: `Paid share for "${oldSplit.title}"`,
+            description: `Paid share to ${payerName} for "${oldSplit.title}"`,
             amount: shareAmount,
             paymentMethod: "UPI",
             transactionDate: new Date(),
-            note: `Paid Split ID: ${splitId}`,
+            note: `Paid share for "${oldSplit.title}" to ${payerName}`,
           });
         } catch (err) {
           console.error("[Split] Error creating payment expense transaction:", err.message);

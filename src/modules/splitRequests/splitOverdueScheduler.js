@@ -15,55 +15,59 @@ const processOverdueSplitRequests = async () => {
       status: "pending",
       dueDate: { $lt: now },
       overdueProcessed: false,
-    });
+    })
+      .populate("paidBy", "fullName email")
+      .populate("participants.user", "fullName email");
 
     if (overdueSplits.length === 0) return;
 
     for (const split of overdueSplits) {
       const payerId = getUserId(split.paidBy);
-      let updatedParticipants = false;
+      const payerName = split.paidBy?.fullName || "Payer";
+      const payerEmail = split.paidBy?.email || "";
 
       for (let i = 0; i < split.participants.length; i++) {
         const p = split.participants[i];
         const pUserId = getUserId(p.user);
+        const participantName = p.user?.fullName || "Group Member";
+        const participantEmail = p.user?.email || "";
 
         if (p.status === "pending" && pUserId !== payerId) {
           const shareAmt = Number(p.amount || 0);
 
-          // 1) Record Expense for the overdue participant
+          // 1) Record Expense for the overdue participant with their name reference
           try {
             await Transaction.create({
               user: pUserId,
               type: "expense",
-              category: "Overdue Split",
-              description: `Overdue split share for "${split.title}"`,
+              category: "Overdue Split Expense",
+              description: `Overdue Split: "${split.title}" (Due date missed)`,
               amount: shareAmt,
               paymentMethod: "UPI",
               transactionDate: now,
-              note: `Overdue Auto-Processed Split ID: ${split._id}`,
+              note: `Unpaid split share for "${split.title}". Payer: ${payerName} (${payerEmail})`,
             });
           } catch (err) {
             console.error("[Overdue Scheduler] Error creating overdue expense:", err.message);
           }
 
-          // 2) Record Income for the recipient (Payer)
+          // 2) Record Income for the recipient (Payer) with participant name reference
           try {
             await Transaction.create({
               user: payerId,
               type: "income",
               category: "Split Reimbursement",
-              description: `Auto-settled overdue share for "${split.title}"`,
+              description: `Overdue Share from ${participantName} for "${split.title}"`,
               amount: shareAmt,
               paymentMethod: "UPI",
               transactionDate: now,
-              note: `Overdue Reimbursement Split ID: ${split._id}`,
+              note: `Auto-settled overdue share from ${participantName} (${participantEmail})`,
             });
           } catch (err) {
             console.error("[Overdue Scheduler] Error creating overdue reimbursement:", err.message);
           }
 
           p.status = "paid";
-          updatedParticipants = true;
         }
       }
 
