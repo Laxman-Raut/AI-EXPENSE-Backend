@@ -28,6 +28,7 @@ const authenticateQuery = (req, res, next) => {
   } catch {
     return res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
+};
 // ─── EXCEL EXPORT (ExcelJS — actually styleable) ───────
 const buildXlsx = async (transactions, res, currencySymbol = "₹") => {
   const wb = new ExcelJS.Workbook();
