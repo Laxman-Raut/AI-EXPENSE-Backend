@@ -1,5 +1,8 @@
 
-const currencyService = require("../currency/service");
+const {
+  getRatesMap,
+  convertAmountWithRates,
+} = require("../currency/service");
 const Transaction = require("./model");
 const Bank = require("../bank/model");
 const User = require("../auth/model");
@@ -121,35 +124,31 @@ const createTransaction = async (transactionData, userId) => {
 
 // Get All Transactions
 const getTransactions = async (userId) => {
-  const user = await User.findById(userId);
+  const [user, rates] = await Promise.all([
+    User.findById(userId).select("currency").lean(),
+    getRatesMap(),
+  ]);
+  const userCurrency = user?.currency || "INR";
 
   const transactions = await Transaction.find({ user: userId })
-    .populate("bankAccount")
+    .populate("bankAccount", "bankName nickname accountNumber isPrimary")
     .sort({
       transactionDate: -1,
-    });
-
-  const convertedTransactions = await Promise.all(
-    transactions.map(async (transaction) => {
-      const result = await currencyService.convertCurrency(
-        transaction.amount,
-        transaction.currency,
-        user.currency
-      );
-
-      return {
-        ...transaction.toObject(),
-        originalAmount: transaction.amount,
-        originalCurrency: transaction.currency,
-        amount: result.success
-          ? result.data.convertedAmount
-          : transaction.amount,
-        currency: user.currency,
-      };
     })
-  );
+    .lean();
 
-  return convertedTransactions;
+  return transactions.map((transaction) => ({
+    ...transaction,
+    originalAmount: transaction.amount,
+    originalCurrency: transaction.currency,
+    amount: convertAmountWithRates(
+      transaction.amount,
+      transaction.currency,
+      userCurrency,
+      rates
+    ),
+    currency: userCurrency,
+  }));
 };
 
 const getTransactionById = async (id, userId) => {
