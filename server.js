@@ -6,7 +6,7 @@ const { startReminderScheduler } = require("./src/modules/notification/scheduler
 const { startRecurringScheduler } = require("./src/modules/recurringTransaction/scheduler");
 const { startSubscriptionScheduler } = require("./src/modules/subscription/scheduler");
 const { startSplitOverdueScheduler } = require("./src/modules/splitRequests/splitOverdueScheduler");
-
+require("./src/modules/currency/scheduler");
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {

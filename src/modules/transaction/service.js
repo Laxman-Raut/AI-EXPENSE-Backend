@@ -1,3 +1,5 @@
+
+const currencyService = require("../currency/service");
 const Transaction = require("./model");
 const Bank = require("../bank/model");
 const User = require("../auth/model");
@@ -119,11 +121,35 @@ const createTransaction = async (transactionData, userId) => {
 
 // Get All Transactions
 const getTransactions = async (userId) => {
-  return await Transaction.find({ user: userId })
+  const user = await User.findById(userId);
+
+  const transactions = await Transaction.find({ user: userId })
     .populate("bankAccount")
     .sort({
       transactionDate: -1,
     });
+
+  const convertedTransactions = await Promise.all(
+    transactions.map(async (transaction) => {
+      const result = await currencyService.convertCurrency(
+        transaction.amount,
+        transaction.currency,
+        user.currency
+      );
+
+      return {
+        ...transaction.toObject(),
+        originalAmount: transaction.amount,
+        originalCurrency: transaction.currency,
+        amount: result.success
+          ? result.data.convertedAmount
+          : transaction.amount,
+        currency: user.currency,
+      };
+    })
+  );
+
+  return convertedTransactions;
 };
 
 const getTransactionById = async (id, userId) => {
@@ -216,4 +242,4 @@ module.exports = {
   updateTransaction,
   deleteTransaction,
   syncTransactions,
-};
+};

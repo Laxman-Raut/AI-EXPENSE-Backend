@@ -25,6 +25,7 @@ const splitRequestRoutes = require("./src/modules/splitRequests/routes");
 const upiRoutes = require("./src/modules/upi/routes");
 const bankRoutes = require("./src/modules/bank/routes");
 const savingsRoutes = require("./src/modules/savings/routes");
+const currencyRoutes = require("./src/modules/currency/routes");
 const app = express();
 
 // Middleware
@@ -82,6 +83,7 @@ app.use("/api/upi", upiRoutes);
 app.use("/api/banks", bankRoutes);
 app.use("/api/bank", bankRoutes);
 app.use("/api/savings", savingsRoutes);
+app.use("/api/currency", currencyRoutes);
 // Health Check
 app.get("/", (req, res) => {
   res.json({
