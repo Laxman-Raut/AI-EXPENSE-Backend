@@ -5,6 +5,7 @@ const {
   getPlanByIdService,
   getPlanHistoryService,
   createPlanVersionService,
+  updatePlanService,
   updateDraftPlanService,
   deletePlanService,
 } = require("./service");
@@ -12,7 +13,7 @@ const {
 // Create Plan
 const createPlan = async (req, res) => {
   try {
-    const plan = await createPlanService(req.body, req.user.userId);
+    const plan = await createPlanService(req.body, req.user.userId || req.user.id);
 
     res.status(201).json({
       success: true,
@@ -101,7 +102,7 @@ const createPlanVersion = async (req, res) => {
     const plan = await createPlanVersionService(
       req.params.id,
       req.body,
-      req.user.userId
+      req.user.userId || req.user.id
     );
 
     res.status(200).json({
@@ -117,18 +118,18 @@ const createPlanVersion = async (req, res) => {
   }
 };
 
-// Update Draft Plan
-const updateDraftPlan = async (req, res) => {
+// Update Plan (General Update for Price, Currency, Details)
+const updatePlan = async (req, res) => {
   try {
-    const plan = await updateDraftPlanService(
+    const plan = await updatePlanService(
       req.params.id,
       req.body,
-      req.user.userId
+      req.user.userId || req.user.id
     );
 
     res.status(200).json({
       success: true,
-      message: "Draft plan updated successfully.",
+      message: "Plan updated successfully.",
       data: plan,
     });
   } catch (error) {
@@ -139,7 +140,12 @@ const updateDraftPlan = async (req, res) => {
   }
 };
 
-// Delete Draft Plan
+// Update Draft Plan
+const updateDraftPlan = async (req, res) => {
+  return updatePlan(req, res);
+};
+
+// Delete Plan
 const removePlan = async (req, res) => {
   try {
     const result = await deletePlanService(req.params.id);
@@ -160,6 +166,7 @@ module.exports = {
   getPlanById,
   getPlanHistory,
   createPlanVersion,
+  updatePlan,
   updateDraftPlan,
   removePlan,
 };

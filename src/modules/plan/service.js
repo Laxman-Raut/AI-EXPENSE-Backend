@@ -16,10 +16,10 @@ const createPlanService = async (planData, adminId) => {
   const existingPlan = await findCurrentPlanBySlug(planData.slug);
 
   if (existingPlan) {
-    throw new Error("Plan already exists.");
+    throw new Error("Plan already exists with this slug.");
   }
 
-  const features = [...new Set(planData.features)];
+  const features = planData.features ? [...new Set(planData.features)] : [];
 
   return await createPlan({
     ...planData,
@@ -101,8 +101,8 @@ const createPlanVersionService = async (
   return await activatePlan(newPlan._id);
 };
 
-// Update Draft Plan
-const updateDraftPlanService = async (
+// Update Plan (General Update for Price, Currency, Features, Status)
+const updatePlanService = async (
   id,
   updateData,
   adminId
@@ -113,7 +113,7 @@ const updateDraftPlanService = async (
     throw new Error("Plan not found.");
   }
 
-  if (updateData.features) {
+  if (updateData.features && Array.isArray(updateData.features)) {
     updateData.features = [...new Set(updateData.features)];
   }
 
@@ -122,18 +122,21 @@ const updateDraftPlanService = async (
   return await updateDraftPlan(id, updateData);
 };
 
-// Delete Draft Plan
+// Update Draft Plan
+const updateDraftPlanService = async (
+  id,
+  updateData,
+  adminId
+) => {
+  return await updatePlanService(id, updateData, adminId);
+};
+
+// Delete Plan
 const deletePlanService = async (id) => {
   const plan = await findPlanById(id);
 
   if (!plan) {
     throw new Error("Plan not found.");
-  }
-
-  if (plan.status !== "draft") {
-    throw new Error(
-      "Only draft plans can be deleted."
-    );
   }
 
   await deletePlan(id);
@@ -151,6 +154,7 @@ module.exports = {
   getPlanByIdService,
   getPlanHistoryService,
   createPlanVersionService,
+  updatePlanService,
   updateDraftPlanService,
   deletePlanService,
 };

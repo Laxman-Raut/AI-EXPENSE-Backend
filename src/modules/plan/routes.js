@@ -7,6 +7,7 @@ const {
   getPlanById,
   getPlanHistory,
   createPlanVersion,
+  updatePlan,
   updateDraftPlan,
   removePlan,
 } = require("./controller");
@@ -58,6 +59,14 @@ router.get(
   authenticate,
   requireAdmin,
   getPlanHistory
+);
+
+router.put(
+  "/:id",
+  authenticate,
+  requireAdmin,
+  validateUpdatePlan,
+  updatePlan
 );
 
 router.put(
