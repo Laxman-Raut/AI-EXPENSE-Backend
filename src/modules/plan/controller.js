@@ -121,11 +121,15 @@ const createPlanVersion = async (req, res) => {
 // Update Plan (General Update for Price, Currency, Details)
 const updatePlan = async (req, res) => {
   try {
+    console.log("[Plan Update] Received body:", JSON.stringify({ price: req.body.price, currency: req.body.currency }));
+    
     const plan = await updatePlanService(
       req.params.id,
       req.body,
       req.user.userId || req.user.id
     );
+
+    console.log("[Plan Update] Saved to DB:", JSON.stringify({ price: plan.price, currency: plan.currency }));
 
     res.status(200).json({
       success: true,

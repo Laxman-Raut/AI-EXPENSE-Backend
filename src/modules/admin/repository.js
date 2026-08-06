@@ -539,6 +539,7 @@ const updatePlan = async (planId, updateData, adminId) => {
   if (updateData.name !== undefined) plan.name = updateData.name.trim();
   if (updateData.slug !== undefined) plan.slug = updateData.slug.toLowerCase().trim();
   if (updateData.price !== undefined) plan.price = Number(updateData.price);
+  if (updateData.currency !== undefined) plan.currency = updateData.currency;
   if (updateData.description !== undefined) plan.description = updateData.description.trim();
   if (updateData.billingCycle !== undefined) plan.billingCycle = updateData.billingCycle;
   if (updateData.durationDays !== undefined) plan.durationDays = Number(updateData.durationDays);
