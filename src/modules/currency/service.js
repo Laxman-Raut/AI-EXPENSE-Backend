@@ -191,29 +191,41 @@ const getRatesMap = async () => {
   }
 };
 
-/**
- * Pure calculation helper to convert amount using rates map
- */
 const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) => {
   const num = Number(amount || 0);
-  if (!num || from === to) return Number(num.toFixed(2));
+  if (!num) return 0;
 
-  // Align USD <-> INR conversion with mobile app UI (1 USD = 85.0 INR)
-  if (from === "USD" && to === "INR") {
-    return Math.round(num * 85.0);
+  const normalize = (c) => {
+    const s = String(c || "").toUpperCase().trim();
+    if (s === "$" || s === "USD") return "USD";
+    if (s === "INR") return "INR";
+    return s;
+  };
+
+  const normFrom = normalize(from);
+  const normTo = normalize(to);
+
+  if (normFrom === normTo) return Number(num.toFixed(2));
+
+  // If explicit rates provided, use them; otherwise fall back to USD:1, INR:85.0
+  if (rates && Object.keys(rates).length) {
+    const fromRate = rates[normFrom] || (normFrom === "USD" ? 1 : normFrom === "INR" ? 85.0 : 1);
+    const toRate = rates[normTo] || (normTo === "USD" ? 1 : normTo === "INR" ? 85.0 : 1);
+
+    const amountInBase = num / fromRate;
+    const converted = amountInBase * toRate;
+
+    return Number(converted.toFixed(2));
   }
-  if (from === "INR" && to === "USD") {
-    return Number((num / 85.0).toFixed(2));
-  }
 
-  // Handle other currencies dynamically based on rates map
-  const fromRate = rates ? (rates[from] || 1) : 1;
-  const toRate = rates ? (rates[to] || 1) : 1;
+  // Fallback rates (85.0 INR per USD)
+  const r = { USD: 1, INR: 85.0 };
+  const inrRate = r["INR"] || 85.0;
 
-  const amountInBase = num / fromRate;
-  const converted = amountInBase * toRate;
+  let amountInINR = normFrom === "USD" ? num * inrRate : num;
+  let finalAmount = normTo === "USD" ? amountInINR / inrRate : amountInINR;
 
-  return Math.round(converted);
+  return Number(finalAmount.toFixed(2));
 };
 
 module.exports = {
