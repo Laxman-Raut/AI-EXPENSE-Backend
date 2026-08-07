@@ -49,10 +49,41 @@ const getAllPlans = async (req, res) => {
 const getPublicPlans = async (req, res) => {
   try {
     const plans = await getPublicPlansService();
+    const { getRatesMap, convertAmountWithRates, getUsdInrExchangeRate } = require("../currency/service");
+    const ratesMap = await getRatesMap();
+    const liveExchangeRate = getUsdInrExchangeRate(ratesMap);
+
+    // Target user currency: authenticated user's currency || query parameter || 'INR'
+    const targetCurrency = String(
+      (req.user && req.user.currency) || req.query?.currency || "INR"
+    ).toUpperCase().trim();
+
+    const formattedPlans = plans.map(p => {
+      const planObj = p.toObject ? p.toObject() : { ...p };
+      const basePrice = planObj.price;
+      const baseCurrency = String(planObj.currency || "INR").toUpperCase().trim();
+
+      const displayPrice = convertAmountWithRates(basePrice, baseCurrency, targetCurrency, ratesMap);
+      const priceInINR = convertAmountWithRates(basePrice, baseCurrency, "INR", ratesMap);
+
+      return {
+        ...planObj,
+        basePrice,
+        baseCurrency,
+        displayPrice,
+        displayCurrency: targetCurrency,
+        exchangeRate: liveExchangeRate,
+        priceInINR,
+        // Set price & currency for backwards compatibility with existing mobile UI components
+        price: displayPrice,
+        currency: targetCurrency,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      data: plans,
+      data: formattedPlans,
+      exchangeRate: liveExchangeRate,
     });
   } catch (error) {
     res.status(500).json({

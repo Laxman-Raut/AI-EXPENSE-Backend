@@ -85,18 +85,22 @@ const validateCouponCtrl = async (req, res) => {
   try {
     const { code, planSlug } = req.body;
     const Plan = require("../plan/model");
-    const { getRatesMap, convertAmountWithRates } = require("../currency/service");
+    const User = require("../auth/model");
+    const { getRatesMap, convertAmountWithRates, roundCurrency } = require("../currency/service");
 
     const plan = await Plan.findOne({ slug: planSlug });
     if (!plan) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
-    
-    const planCurrency = (plan.currency || "USD").toUpperCase();
-    const ratesMap = await getRatesMap();
-    const planPriceINR = convertAmountWithRates(plan.price, planCurrency, "INR", ratesMap);
 
-    const result = await service.validateAndCalculateDiscount(code, req.user.userId, planSlug, planPriceINR);
+    const user = await User.findById(req.user.userId || req.user.id);
+    const targetCurrency = String((user && user.currency) || req.body.currency || "INR").toUpperCase().trim();
+
+    const ratesMap = await getRatesMap();
+    const baseCurrency = String(plan.currency || "INR").toUpperCase().trim();
+    const displayPrice = convertAmountWithRates(plan.price, baseCurrency, targetCurrency, ratesMap);
+
+    const result = await service.validateAndCalculateDiscount(code, req.user.userId || req.user.id, planSlug, displayPrice);
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
@@ -105,8 +109,13 @@ const validateCouponCtrl = async (req, res) => {
       success: true, 
       message: "Coupon validated successfully", 
       data: {
-        discountAmount: Math.round(result.discountAmount),
-        finalAmount: Math.round(result.finalAmount),
+        basePrice: plan.price,
+        baseCurrency,
+        displayPrice,
+        displayCurrency: targetCurrency,
+        originalAmount: displayPrice,
+        discountAmount: roundCurrency(result.discountAmount, targetCurrency),
+        finalAmount: roundCurrency(result.finalAmount, targetCurrency),
         couponId: result.coupon._id,
         code: result.coupon.code,
         coupon: result.coupon

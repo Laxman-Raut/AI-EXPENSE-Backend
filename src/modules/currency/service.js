@@ -191,6 +191,31 @@ const getRatesMap = async () => {
   }
 };
 
+/**
+ * Helper to round currency amounts based on currency rules
+ */
+const roundCurrency = (val, currency = "INR") => {
+  const num = Number(val || 0);
+  if (isNaN(num)) return 0;
+  const curr = String(currency || "").toUpperCase().trim();
+  if (curr === "USD" || curr === "EUR" || curr === "GBP") {
+    return Number(num.toFixed(2));
+  }
+  return Number(num.toFixed(2));
+};
+
+/**
+ * Returns latest USD/INR exchange rate (1 USD = X INR)
+ */
+const getUsdInrExchangeRate = (ratesMap = null) => {
+  const r = (ratesMap && Object.keys(ratesMap).length > 0) ? ratesMap : { USD: 0.0111, INR: 1 };
+  const usdRate = Number(r["USD"] || 0.0111);
+  const inrRate = Number(r["INR"] || 1);
+  if (usdRate <= 0) return 90.0;
+  const rate = inrRate / usdRate;
+  return Number(rate.toFixed(4));
+};
+
 const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) => {
   const num = Number(amount || 0);
   if (!num) return 0;
@@ -205,27 +230,21 @@ const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) 
   const normFrom = normalize(from);
   const normTo = normalize(to);
 
-  if (normFrom === normTo) return Number(num.toFixed(2));
+  if (normFrom === normTo) return roundCurrency(num, normTo);
 
-  // If explicit rates provided, use them; otherwise fall back to USD:1, INR:85.0
-  if (rates && Object.keys(rates).length) {
-    const fromRate = rates[normFrom] || (normFrom === "USD" ? 1 : normFrom === "INR" ? 85.0 : 1);
-    const toRate = rates[normTo] || (normTo === "USD" ? 1 : normTo === "INR" ? 85.0 : 1);
+  // Use live market rates map from Currency API (fallback if rates doc missing)
+  const r = (rates && Object.keys(rates).length > 0) ? rates : { USD: 0.0111, INR: 1 };
+  
+  let fromRate = Number(r[normFrom] || (normFrom === "USD" ? 0.0111 : 1));
+  let toRate = Number(r[normTo] || (normTo === "USD" ? 0.0111 : 1));
 
-    const amountInBase = num / fromRate;
-    const converted = amountInBase * toRate;
+  if (fromRate <= 0) fromRate = 1;
+  if (toRate <= 0) toRate = 1;
 
-    return Number(converted.toFixed(2));
-  }
+  const amountInBase = num / fromRate;
+  const converted = amountInBase * toRate;
 
-  // Fallback rates (85.0 INR per USD)
-  const r = { USD: 1, INR: 85.0 };
-  const inrRate = r["INR"] || 85.0;
-
-  let amountInINR = normFrom === "USD" ? num * inrRate : num;
-  let finalAmount = normTo === "USD" ? amountInINR / inrRate : amountInINR;
-
-  return Number(finalAmount.toFixed(2));
+  return roundCurrency(converted, normTo);
 };
 
 module.exports = {
@@ -234,4 +253,6 @@ module.exports = {
   getRatesMap,
   convertCurrency,
   convertAmountWithRates,
+  getUsdInrExchangeRate,
+  roundCurrency,
 };

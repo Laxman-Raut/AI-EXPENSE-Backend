@@ -23,6 +23,42 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    planId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Plan",
+      default: null,
+    },
+
+    basePrice: {
+      type: Number,
+      default: null,
+    },
+
+    baseCurrency: {
+      type: String,
+      default: "INR",
+    },
+
+    displayPrice: {
+      type: Number,
+      default: null,
+    },
+
+    displayCurrency: {
+      type: String,
+      default: "INR",
+    },
+
+    exchangeRate: {
+      type: Number,
+      default: 1,
+    },
+
+    razorpayAmountPaise: {
+      type: Number,
+      default: 0,
+    },
+
     originalAmount: {
       type: Number,
       default: null,

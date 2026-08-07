@@ -11,6 +11,8 @@ const {
   deletePlan,
 } = require("./repository");
 
+const SystemSettings = require("../admin/systemSettings.model");
+
 // Create Plan
 const createPlanService = async (planData, adminId) => {
   const existingPlan = await findCurrentPlanBySlug(planData.slug);
@@ -19,10 +21,14 @@ const createPlanService = async (planData, adminId) => {
     throw new Error("Plan already exists with this slug.");
   }
 
+  const settings = await SystemSettings.findOne();
+  const baseCurrency = (planData.currency || (settings && settings.currency) || "INR").toUpperCase();
+
   const features = planData.features ? [...new Set(planData.features)] : [];
 
   return await createPlan({
     ...planData,
+    currency: baseCurrency,
     features,
     createdBy: adminId,
     updatedBy: adminId,

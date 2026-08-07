@@ -39,44 +39,64 @@ const createOrder = async (userId, plan, couponCode = null) => {
     throw new Error("Cannot create a payment order for a free plan");
   }
   
-  const { getRatesMap, convertAmountWithRates } = require("../currency/service");
+  const { getRatesMap, convertAmountWithRates, getUsdInrExchangeRate, roundCurrency } = require("../currency/service");
 
-  const planCurrency = (planDoc.currency || "USD").toUpperCase();
-  const rawPrice = planDoc.price;
+  // Fetch authenticated user to inspect user's display currency
+  const user = await User.findById(userId);
+  const userCurrency = String((user && user.currency) || "INR").toUpperCase().trim();
 
-  // Convert base plan price to INR for Razorpay checkout (Razorpay processes INR transactions)
   const ratesMap = await getRatesMap();
-  const originalAmount = convertAmountWithRates(rawPrice, planCurrency, "INR", ratesMap);
-  let finalAmount = originalAmount;
-  let discountAmount = 0;
+  const exchangeRate = getUsdInrExchangeRate(ratesMap);
+
+  const basePrice = planDoc.price;
+  const baseCurrency = String(planDoc.currency || "INR").toUpperCase().trim();
+
+  // 1. Calculate user display price in user's active currency
+  const displayPrice = convertAmountWithRates(basePrice, baseCurrency, userCurrency, ratesMap);
+
+  // 2. Convert display price to payable INR for Razorpay processing
+  const payableINR = baseCurrency === "INR"
+    ? basePrice
+    : (userCurrency === "INR" ? displayPrice : convertAmountWithRates(displayPrice, userCurrency, "INR", ratesMap));
+
+  let finalINR = payableINR;
+  let discountINR = 0;
 
   if (couponCode) {
-    const discountResult = await validateAndCalculateDiscount(couponCode, userId, planDoc.slug, originalAmount);
+    const discountResult = await validateAndCalculateDiscount(couponCode, userId, planDoc.slug, payableINR);
     if (!discountResult.valid) {
       throw new Error(discountResult.message);
     }
-    finalAmount = discountResult.finalAmount;
-    discountAmount = discountResult.discountAmount;
+    finalINR = discountResult.finalAmount;
+    discountINR = discountResult.discountAmount;
   }
   
-  const amountInPaise = Math.round(finalAmount * 100);
+  // 3. Compute integer paise for Razorpay API (Rupees * 100)
+  const razorpayAmountPaise = Math.round(finalINR * 100);
 
   // Razorpay API expects amount in subunit/paise (Rupees * 100)
   const order = await razorpay.orders.create({
-    amount: amountInPaise,
+    amount: razorpayAmountPaise,
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
   });
 
-  // Store standard amount (Rupees) in our local database
+  // Store complete audit Payment document in local database
   const payment = await Payment.create({
     userId,
-    amount: Math.round(finalAmount),
-    originalAmount,
-    discountAmount,
+    planId: planDoc._id,
+    plan: planDoc.slug,
+    basePrice,
+    baseCurrency,
+    displayPrice,
+    displayCurrency: userCurrency,
+    exchangeRate,
+    amount: Math.round(finalINR),
+    originalAmount: Math.round(payableINR),
+    discountAmount: Math.round(discountINR),
+    razorpayAmountPaise,
     couponCode,
     currency: "INR",
-    plan: planDoc.slug,
     provider: "razorpay",
     status: "pending",
     razorpayOrderId: order.id,
