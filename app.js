@@ -88,7 +88,7 @@ app.use("/api/currency", currencyRoutes);
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "AI Expense Tracker API Running",
+    message: "Expenso API Running",
   });
 });
 

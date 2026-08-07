@@ -137,6 +137,41 @@ const userSchema = new mongoose.Schema(
       },
     },
 
+    autoRenew: {
+  type: Boolean,
+  default: false,
+},
+
+// Razorpay Subscription ID
+razorpaySubscriptionId: {
+  type: String,
+  default: "",
+},
+
+// AutoPay Mandate Status
+mandateStatus: {
+  type: String,
+  enum: [
+    "inactive",
+    "pending",
+    "active",
+    "cancelled",
+    "failed",
+  ],
+  default: "inactive",
+},
+
+// Next automatic billing date
+nextBillingDate: {
+  type: Date,
+  default: null,
+},
+
+note: {
+  type: String,
+  default: "",
+},
+
 
     // AI Usage
 

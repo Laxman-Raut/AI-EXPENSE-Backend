@@ -72,24 +72,25 @@ const deleteNotification = async (req, res) => {
       message: "Notification deleted successfully.",
     });
   } catch (error) {
-    res.status(500).json({
+              res.status(500).json({
       success: false,
-      message: error.message,
+          message: error.message,
     });
   }
 };
 
-// Clear all notifications
+
 const clearNotifications = async (req, res) => {
   try {
-    await notificationService.clearAllNotifications(req.user.userId);
+          await notificationService.clearAllNotifications(req.user.userId);
 
-    res.status(200).json({
-      success: true,
-      message: "All notifications cleared.",
-    });
-  } catch (error) {
-    res.status(500).json({
+res.status(200).json({
+            success: true,
+        message: "All notifications cleared.",
+                   });
+  }
+          catch (error) {
+              res.status(500).json({
       success: false,
       message: error.message,
     });
@@ -97,7 +98,7 @@ const clearNotifications = async (req, res) => {
 };
 
 module.exports = {
-  getNotifications,
+   getNotifications,
   createNotification,
   markAsRead,
   deleteNotification,

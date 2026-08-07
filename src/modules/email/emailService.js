@@ -7,7 +7,7 @@ const sendOtpEmail = async (email, otp) => {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to: email,
-    subject: "AI Expense Tracker - Password Reset OTP",
+    subject: "Expenso - Password Reset OTP",
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 500px;">
         <h2 style="color: #8A3FFC;">Password Reset Request</h2>
@@ -49,13 +49,13 @@ const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h2 style="color: #4B8CFF; border-bottom: 2px solid #4B8CFF; padding-bottom: 10px;">Support Request Confirmed</h2>
         <p>Hi ${userName},</p>
-        <p>Thank you for contacting AI Expense Tracker support. We have received your message and will get back to you as soon as possible.</p>
+        <p>Thank you for contacting Expenso support. We have received your message and will get back to you as soon as possible.</p>
         <p>For your reference, here is a summary of your request:</p>
         <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4B8CFF; margin: 15px 0;">
           <p><strong>Subject:</strong> ${subject}</p>
           <p style="white-space: pre-wrap; margin: 0;">${message}</p>
         </div>
-        <p>Best regards,<br/>AI Expense Tracker Support Team</p>
+        <p>Best regards,<br/>Expenso Support Team</p>
       </div>
     `,
   });
@@ -66,7 +66,7 @@ const sendWelcomeEmail = async (email, userName) => {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to: email,
-    subject: "Welcome to AI Expense Tracker! 🚀",
+    subject: "Welcome to Expenso! 🚀",
     html: welcomeTemplate(userName || "Valued User"),
   });
 };
@@ -76,13 +76,13 @@ const sendSubscriptionEmail = async (email, userName, planName, action) => {
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to: email,
-    subject: `AI Expense Tracker - Subscription ${action}`,
+    subject: `Expenso - Subscription ${action}`,
     html: `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h2 style="color: #8A3FFC;">Subscription Update</h2>
         <p>Hi ${userName || "User"},</p>
         <p>Your subscription for plan <strong>${planName}</strong> has been <strong>${action}</strong>.</p>
-        <p>Thank you for using AI Expense Tracker!</p>
+        <p>Thank you for using Expenso!</p>
       </div>
     `,
   });
@@ -145,7 +145,7 @@ const sendInvoiceEmail = async ({ userEmail, userName, payment, subscription }) 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: userEmail,
-      subject: `Payment Receipt & Invoice for ${planNameFormatted} - AI Expense Tracker`,
+      subject: `Payment Receipt & Invoice for ${planNameFormatted} - Expenso`,
       html: htmlContent,
       attachments,
     });
@@ -177,7 +177,7 @@ const sendSplitExpenseEmail = async ({
   });
 
   await transporter.sendMail({
-    from: `AI Expense Tracker <${process.env.EMAIL_USER}>`,
+    from: `Expenso <${process.env.EMAIL_USER}>`,
     to: userEmail,
     subject: `New Shared Expense: ${expenseTitle}`,
     html: `
@@ -203,7 +203,7 @@ const sendSplitExpenseEmail = async ({
                       <tr>
                         <td>
                           <span style="font-size: 13px; font-weight: 800; color: #8A3FFC; letter-spacing: 1.5px; text-transform: uppercase;">
-                            ✨ AI EXPENSE TRACKER
+                            ✨ EXPENSO
                           </span>
                           <h1 style="margin: 6px 0 0 0; font-size: 22px; font-weight: 800; color: #FFFFFF;">
                             New Shared Expense
@@ -265,7 +265,7 @@ const sendSplitExpenseEmail = async ({
                       <tr>
                         <td align="center">
                           <a href="#" style="display: inline-block; background-color: #8A3FFC; color: #FFFFFF; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 16px rgba(138,63,252,0.4);">
-                            Open AI Expense Tracker
+                            Open Expenso
                           </a>
                         </td>
                       </tr>
@@ -278,7 +278,7 @@ const sendSplitExpenseEmail = async ({
                 <tr>
                   <td style="padding: 20px 32px; background-color: #0E0F15; border-top: 1px solid #1F2233; text-align: center;">
                     <p style="margin: 0; font-size: 12px; color: #54595E; line-height: 1.5;">
-                      This is an automated notification from AI Expense Tracker.<br/>
+                      This is an automated notification from Expenso.<br/>
                       Please do not reply directly to this email.
                     </p>
                   </td>
@@ -298,9 +298,9 @@ const sendSplitExpenseEmail = async ({
 // Send Registration Verification OTP Email
 const sendVerificationOtpEmail = async (email, fullName, otp) => {
   await transporter.sendMail({
-    from: `AI Expense Tracker <${process.env.EMAIL_USER}>`,
+    from: `Expenso <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "AI Expense Tracker - Verify Your Account",
+    subject: "Expenso - Verify Your Account",
     html: `
       <!DOCTYPE html>
       <html>
@@ -319,7 +319,7 @@ const sendVerificationOtpEmail = async (email, fullName, otp) => {
                 <tr>
                   <td style="padding: 28px 32px 20px 32px; background: linear-gradient(135deg, #181926 0%, #12131A 100%); border-bottom: 1px solid #1F2233; text-align: center;">
                     <span style="font-size: 13px; font-weight: 800; color: #8A3FFC; letter-spacing: 1.5px; text-transform: uppercase;">
-                      ✨ AI EXPENSE TRACKER
+                      ✨ EXPENSO
                     </span>
                     <h1 style="margin: 8px 0 0 0; font-size: 22px; font-weight: 800; color: #FFFFFF;">
                       Verify Your Email Address
@@ -331,7 +331,7 @@ const sendVerificationOtpEmail = async (email, fullName, otp) => {
                   <td style="padding: 28px 32px; text-align: center;">
                     <p style="margin: 0 0 20px 0; font-size: 15px; color: #A0A5B5; line-height: 1.6; text-align: left;">
                       Hello <strong style="color: #FFFFFF;">${fullName || 'User'}</strong>,<br/><br/>
-                      Thank you for signing up for AI Expense Tracker! Please enter the 6-digit verification code below to activate your account:
+                      Thank you for signing up for Expenso! Please enter the 6-digit verification code below to activate your account:
                     </p>
 
                     <div style="background: linear-gradient(135deg, rgba(138,63,252,0.15) 0%, rgba(94,27,219,0.08) 100%); border: 1px solid rgba(138,63,252,0.3); border-radius: 14px; padding: 20px; margin: 24px 0;">
@@ -350,7 +350,7 @@ const sendVerificationOtpEmail = async (email, fullName, otp) => {
                 <tr>
                   <td style="padding: 20px 32px; background-color: #0E0F15; border-top: 1px solid #1F2233; text-align: center;">
                     <p style="margin: 0; font-size: 12px; color: #54595E;">
-                      © ${new Date().getFullYear()} AI Expense Tracker. All rights reserved.
+                      © ${new Date().getFullYear()} Expenso. All rights reserved.
                     </p>
                   </td>
                 </tr>

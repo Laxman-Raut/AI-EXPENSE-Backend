@@ -2,46 +2,62 @@ const axios = require("axios");
 const CurrencyRate = require("./model");
 const fetchLatestRates = async () => {
   try {
-    const apiKey = process.env.EXCHANGE_RATE_API_KEY;
-    const base = process.env.EXCHANGE_RATE_BASE || "USD";
+let response;
+const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+const base = process.env.EXCHANGE_RATE_BASE || "USD";
 
-    // Use keyed endpoint if valid API key exists in .env, otherwise use official open free endpoint (no API key required)
-    const url = (apiKey && apiKey !== "undefined" && apiKey.trim())
-      ? `https://v6.exchangerate-api.com/v6/${apiKey.trim()}/latest/${base}`
-      : `https://open.er-api.com/v6/latest/${base}`;
+// Use keyed endpoint if valid API key exists in .env, otherwise use official open free endpoint (no API key required)
+const url = (apiKey && apiKey !== "invalid-key" && apiKey.trim())
+  ? `https://v6.exchangerate-api.com/v6/${apiKey.trim()}/latest/${base}`
+  : `https://open.er-api.com/v6/latest/${base}`;
 
-    const response = await axios.get(url);
-
-    if (response.data.result !== "success") {
-      throw new Error("Failed to fetch exchange rates");
+    if (apiKey && apiKey !== "invalid-key" && apiKey.trim() !== "") {
+      try {
+        response = await axios.get(
+          `https://v6.exchangerate-api.com/v6/${apiKey}/latest/${base}`
+        );
+      } catch (e) {
+        console.warn("[Currency Rates] ⚠️ Primary API key failed, using open API fallback...");
+      }
     }
 
-    const conversion_rates = response.data.rates || response.data.conversion_rates;
-    const base_code = response.data.base_code || response.data.base || base;
+if (!response || response.data?.result !== "success") {
+  // Fallback to open exchange rate API (no key required)
+  response = await axios.get(`https://open.er-api.com/v6/latest/${base}`);
+}
 
-    let currency = await CurrencyRate.findOne();
+    if (response.data && (response.data.result === "success" || response.data.rates)) {
+      const conversion_rates = response.data.conversion_rates || response.data.rates;
+      const base_code = response.data.base_code || response.data.base || base;
 
-    if (!currency) {
-      currency = await CurrencyRate.create({
-        baseCurrency: base_code,
-        rates: conversion_rates,
-        fetchedAt: new Date(),
-      });
+      let currency = await CurrencyRate.findOne();
+
+      if (!currency) {
+        currency = await CurrencyRate.create({
+          baseCurrency: base_code,
+          rates: conversion_rates,
+          fetchedAt: new Date(),
+        });
+      } else {
+        currency.baseCurrency = base_code;
+        currency.rates = conversion_rates;
+        currency.fetchedAt = new Date();
+
+        await currency.save();
+      }
+
+      console.log("[Currency Rates] ✅ Exchange rates loaded & updated successfully.");
+
+      return {
+        success: true,
+        message: "Exchange rates updated successfully.",
+        data: currency,
+      };
     } else {
-      currency.baseCurrency = base_code;
-      currency.rates = conversion_rates;
-      currency.fetchedAt = new Date();
-
-      await currency.save();
+      throw new Error("Failed to fetch exchange rates from all sources.");
     }
-
-    return {
-      success: true,
-      message: "Exchange rates updated successfully.",
-      data: currency,
-    };
   } catch (error) {
-    console.error("Currency API Error:", error.response?.data || error.message);
+    console.error("Currency API Warning:", error.response?.data || error.message);
 
     // Fallback: If no currency rate document exists in DB, seed static fallback rates so app & dashboard operate smoothly
     try {

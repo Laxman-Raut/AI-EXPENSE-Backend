@@ -178,7 +178,7 @@ const invoiceTemplate = ({
       <table width="100%" border="0" cellspacing="0" cellpadding="0">
         <tr>
           <td>
-            <h1 class="brand-title">AI EXPENSE TRACKER</h1>
+            <h1 class="brand-title">EXPENSO</h1>
             <p class="brand-subtitle">Official Payment Receipt & Tax Invoice</p>
           </td>
           <td align="right">
@@ -270,7 +270,7 @@ const invoiceTemplate = ({
     <div class="footer">
       If you have questions regarding this receipt, please contact support at <a href="mailto:${process.env.EMAIL_USER || 'support@aiexpensetracker.com'}">${process.env.EMAIL_USER || 'support@aiexpensetracker.com'}</a>.
       <br><br>
-      &copy; ${new Date().getFullYear()} AI Expense Tracker. All rights reserved.
+      &copy; ${new Date().getFullYear()} Expenso. All rights reserved.
     </div>
   </div>
 </body>
