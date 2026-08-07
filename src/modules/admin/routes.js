@@ -45,9 +45,20 @@ const {
   getPaymentReportCtrl,
 } = require("./reports.controller");
 
+const {
+  createCouponCtrl,
+  getAllCouponsCtrl,
+  getCouponByIdCtrl,
+  updateCouponCtrl,
+  toggleCouponStatusCtrl,
+  deleteCouponCtrl,
+  getCouponStatsCtrl,
+} = require("../coupon/controller");
+
 
 
 const router = express.Router();
+
 
 // ======================================
 // Dashboard
@@ -234,6 +245,19 @@ router.get(
   requireAdmin,
   getAiUsageStats
 );
+
+// ======================================
+// Coupons Management
+// ======================================
+
+router.get("/coupons", authenticate, requireAdmin, getAllCouponsCtrl);
+router.post("/coupons", authenticate, requireAdmin, createCouponCtrl);
+router.get("/coupons/stats", authenticate, requireAdmin, getCouponStatsCtrl);
+router.get("/coupons/:id", authenticate, requireAdmin, getCouponByIdCtrl);
+router.put("/coupons/:id", authenticate, requireAdmin, updateCouponCtrl);
+router.patch("/coupons/:id/status", authenticate, requireAdmin, toggleCouponStatusCtrl);
+router.delete("/coupons/:id", authenticate, requireAdmin, deleteCouponCtrl);
+
 
 // ======================================
 // Reports

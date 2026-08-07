@@ -12,9 +12,9 @@ const {
 
 const createPaymentOrder = async (req, res) => {
   try {
-    const { plan } = req.body;
+    const { plan, couponCode } = req.body;
 
-    const result = await createOrder(req.user.userId, plan);
+    const result = await createOrder(req.user.userId, plan, couponCode);
 
     return res.status(201).json({
       success: true,

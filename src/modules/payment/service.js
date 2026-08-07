@@ -4,11 +4,12 @@ const razorpay = require("./razorpay");
 const User = require("../auth/model");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
+const { validateAndCalculateDiscount, redeemCouponService } = require("../coupon/service");
 
 
 // Create Order
 
-const createOrder = async (userId, plan) => {
+const createOrder = async (userId, plan, couponCode = null) => {
   const normalizedSlug = (plan || "").toString().toLowerCase().trim();
 
   // Dynamically lookup plan from database (created/managed by super admin)
@@ -37,7 +38,21 @@ const createOrder = async (userId, plan) => {
   if (planDoc.price <= 0) {
     throw new Error("Cannot create a payment order for a free plan");
   }
-  const amount = planDoc.price;
+  
+  const originalAmount = planDoc.price;
+  let finalAmount = originalAmount;
+  let discountAmount = 0;
+
+  if (couponCode) {
+    const discountResult = await validateAndCalculateDiscount(couponCode, userId, planDoc.slug, originalAmount);
+    if (!discountResult.valid) {
+      throw new Error(discountResult.message);
+    }
+    finalAmount = discountResult.finalAmount;
+    discountAmount = discountResult.discountAmount;
+  }
+  
+  const amount = finalAmount;
 
   // Razorpay API expects amount in subunit/paise (Rupees * 100)
   const order = await razorpay.orders.create({
@@ -50,6 +65,9 @@ const createOrder = async (userId, plan) => {
   const payment = await Payment.create({
     userId,
     amount,
+    originalAmount,
+    discountAmount,
+    couponCode,
     currency: "INR",
     plan: planDoc.slug,
     provider: "razorpay",
@@ -121,6 +139,14 @@ const verifyPayment = async ({
   payment.paidAt = new Date();
 
   await payment.save();
+
+  if (payment.couponCode) {
+    const { getCouponByCode } = require("../coupon/repository");
+    const coupon = await getCouponByCode(payment.couponCode);
+    if (coupon) {
+      await redeemCouponService(coupon._id, payment.userId, payment._id);
+    }
+  }
 
   user.subscription = {
     plan: planDoc ? planDoc.slug : payment.plan,

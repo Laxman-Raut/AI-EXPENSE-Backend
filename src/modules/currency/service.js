@@ -2,15 +2,22 @@ const axios = require("axios");
 const CurrencyRate = require("./model");
 const fetchLatestRates = async () => {
   try {
-    const response = await axios.get(
-      `https://v6.exchangerate-api.com/v6/${process.env.EXCHANGE_RATE_API_KEY}/latest/${process.env.EXCHANGE_RATE_BASE}`
-    );
+    const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+    const base = process.env.EXCHANGE_RATE_BASE || "USD";
+
+    // Use keyed endpoint if valid API key exists in .env, otherwise use official open free endpoint (no API key required)
+    const url = (apiKey && apiKey !== "undefined" && apiKey.trim())
+      ? `https://v6.exchangerate-api.com/v6/${apiKey.trim()}/latest/${base}`
+      : `https://open.er-api.com/v6/latest/${base}`;
+
+    const response = await axios.get(url);
 
     if (response.data.result !== "success") {
       throw new Error("Failed to fetch exchange rates");
     }
 
-    const { conversion_rates, base_code } = response.data;
+    const conversion_rates = response.data.rates || response.data.conversion_rates;
+    const base_code = response.data.base_code || response.data.base || base;
 
     let currency = await CurrencyRate.findOne();
 
@@ -36,9 +43,34 @@ const fetchLatestRates = async () => {
   } catch (error) {
     console.error("Currency API Error:", error.response?.data || error.message);
 
+    // Fallback: If no currency rate document exists in DB, seed static fallback rates so app & dashboard operate smoothly
+    try {
+      let currency = await CurrencyRate.findOne();
+      if (!currency) {
+        const defaultRates = {
+          USD: 1,
+          INR: 85.0,
+          EUR: 0.92,
+          GBP: 0.79,
+          AED: 3.67,
+          CAD: 1.36,
+          AUD: 1.52,
+          JPY: 155.0,
+        };
+        await CurrencyRate.create({
+          baseCurrency: "USD",
+          rates: defaultRates,
+          fetchedAt: new Date(),
+        });
+        console.log("⚠️ Applied fallback default exchange rates (1 USD = 85 INR).");
+      }
+    } catch (fallbackErr) {
+      console.error("Failed to seed fallback exchange rates:", fallbackErr.message);
+    }
+
     return {
       success: false,
-      message: "Failed to update exchange rates.",
+      message: "Failed to update exchange rates. Using stored/fallback rates.",
     };
   }
 };

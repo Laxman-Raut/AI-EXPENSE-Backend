@@ -5,6 +5,7 @@ const { createPaymentOrder,
       verifyPaymentController,
       paymentDetails,
         } = require("./controller");
+const { validateCouponCtrl } = require("../coupon/controller");
 
 const router = express.Router();
 
@@ -24,6 +25,12 @@ router.get(
   "/:id",
   authenticate,
   paymentDetails
+);
+
+router.post(
+  "/validate-coupon",
+  authenticate,
+  validateCouponCtrl
 );
 
 module.exports = router;

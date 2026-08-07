@@ -23,6 +23,21 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
 
+    originalAmount: {
+      type: Number,
+      default: null,
+    },
+
+    discountAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    couponCode: {
+      type: String,
+      default: null,
+    },
+
     provider: {
       type: String,
       enum: ["razorpay", "google_play", "manual"],
