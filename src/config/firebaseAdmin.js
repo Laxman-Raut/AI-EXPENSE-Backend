@@ -19,22 +19,42 @@ const initializeFirebaseAdmin = () => {
   if (isInitialized) return true;
 
   try {
-    const serviceAccountPath = path.join(__dirname, "firebase-service-account.json");
-    const serviceAccount = require(serviceAccountPath);
+    let serviceAccount = null;
 
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        serviceAccount = typeof process.env.FIREBASE_SERVICE_ACCOUNT === "string"
+          ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+          : process.env.FIREBASE_SERVICE_ACCOUNT;
+      } catch (e) {
+        console.warn("[Firebase Admin] ⚠️ FIREBASE_SERVICE_ACCOUNT env var is invalid JSON:", e.message);
+      }
+    }
 
-    isInitialized = true;
-    console.log("[Firebase Admin] ✅ Initialized successfully.");
-    return true;
+    if (!serviceAccount) {
+      const fs = require("fs");
+      const serviceAccountPath = path.join(__dirname, "firebase-service-account.json");
+      if (fs.existsSync(serviceAccountPath)) {
+        serviceAccount = require(serviceAccountPath);
+      }
+    }
+
+    if (serviceAccount) {
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+      isInitialized = true;
+      console.log("[Firebase Admin] ✅ Initialized successfully.");
+      return true;
+    } else {
+      console.log(
+        "[Firebase Admin] ℹ️ Push notifications disabled (firebase-service-account.json not found). Set FIREBASE_SERVICE_ACCOUNT env var on Render if needed."
+      );
+      isInitialized = false;
+      return false;
+    }
   } catch (err) {
-    console.warn(
-      "[Firebase Admin] ⚠️ Could not initialize:",
-      err.message,
-      "\n  → Push notifications will be skipped. Place firebase-service-account.json in src/config/"
-    );
+    console.warn("[Firebase Admin] ⚠️ Could not initialize:", err.message);
     isInitialized = false;
     return false;
   }
