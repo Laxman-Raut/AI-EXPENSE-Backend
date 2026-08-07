@@ -191,22 +191,29 @@ const getRatesMap = async () => {
   }
 };
 
-/**
- * Pure calculation helper to convert amount using rates map
- */
 const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) => {
   const num = Number(amount || 0);
-  if (!num || from === to) return Number(num.toFixed(2));
+  if (!num) return 0;
 
-  // Fallback rates if DB rates not fetched yet
-  const r = rates || { USD: 1, INR: 86.5, EUR: 0.92 };
-  const fromRate = r[from] || (from === "INR" ? 86.5 : 1);
-  const toRate = r[to] || (to === "INR" ? 86.5 : 1);
+  const normalize = (c) => {
+    const s = String(c || "").toUpperCase().trim();
+    if (s === "$" || s === "USD") return "USD";
+    return "INR";
+  };
 
-  const amountInUSD = from === "USD" ? num : num / fromRate;
-  const converted = to === "USD" ? amountInUSD : amountInUSD * toRate;
+  const normFrom = normalize(from);
+  const normTo = normalize(to);
 
-  return Number(converted.toFixed(2));
+  if (normFrom === normTo) return Number(num.toFixed(2));
+
+  // Fallback rates (85.0 INR per USD)
+  const r = rates || { USD: 1, INR: 85.0 };
+  const inrRate = r["INR"] || 85.0;
+
+  let amountInINR = normFrom === "USD" ? num * inrRate : num;
+  let finalAmount = normTo === "USD" ? amountInINR / inrRate : amountInINR;
+
+  return Number(finalAmount.toFixed(2));
 };
 
 module.exports = {

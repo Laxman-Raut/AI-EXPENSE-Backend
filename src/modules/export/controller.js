@@ -183,13 +183,20 @@ const buildPdf = (transactions, res, currencySymbol = "₹") => {
   doc.roundedRect(40, boxTop, 515, 70, 6).fillAndStroke(`#${COLORS.boxBg}`, `#${COLORS.border}`);
   const boxY = boxTop + 14;
 
+  const isUSD = currencySymbol === "$";
+  const locale = isUSD ? "en-US" : "en-IN";
+
   const summaryCell = (label, value, color, x) => {
     doc.fontSize(10).font("Helvetica").fillColor(`#${COLORS.textMuted}`).text(label, x, boxY);
+    const valFormatted = Math.abs(value).toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     doc
-      .fontSize(16)
+      .fontSize(15)
       .font("Helvetica-Bold")
       .fillColor(color)
-      .text(`${currencySymbol}${Math.abs(value).toLocaleString("en-IN")}`, x, boxY + 14);
+      .text(`${currencySymbol}${valFormatted}`, x, boxY + 14);
   };
   summaryCell("TOTAL INCOME", totalIncome, `#${COLORS.income}`, 60);
   summaryCell("TOTAL EXPENSE", totalExpense, `#${COLORS.expense}`, 230);
@@ -222,6 +229,10 @@ const buildPdf = (transactions, res, currencySymbol = "₹") => {
     }
 
     const isIncome = t.type === "income";
+    const amountVal = Number(t.amount || 0).toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     doc.fontSize(8).fillColor(`#${COLORS.textBody}`);
     doc.text(dayjs(t.transactionDate).format("DD MMM YY"), TABLE_COLS[0].x, rowY, {
       width: TABLE_COLS[0].width,
@@ -244,7 +255,7 @@ const buildPdf = (transactions, res, currencySymbol = "₹") => {
         width: TABLE_COLS[4].width,
       })
       .text(
-        `${isIncome ? "+" : "-"}${currencySymbol}${t.amount.toLocaleString("en-IN")}`,
+        `${isIncome ? "+" : "-"}${currencySymbol}${amountVal}`,
         TABLE_COLS[5].x,
         rowY,
         { width: TABLE_COLS[5].width, align: "right" }
