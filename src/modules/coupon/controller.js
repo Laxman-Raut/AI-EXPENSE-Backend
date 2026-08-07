@@ -84,15 +84,19 @@ const getCouponStatsCtrl = async (req, res) => {
 const validateCouponCtrl = async (req, res) => {
   try {
     const { code, planSlug } = req.body;
-    // Note: To validate a coupon, we also need the planPrice, which can be fetched from Plan model.
-    // Assuming the frontend might not pass the correct price, we fetch it.
     const Plan = require("../plan/model");
+    const { getRatesMap, convertAmountWithRates } = require("../currency/service");
+
     const plan = await Plan.findOne({ slug: planSlug });
     if (!plan) {
       return res.status(404).json({ success: false, message: "Plan not found" });
     }
     
-    const result = await service.validateAndCalculateDiscount(code, req.user.userId, planSlug, plan.price);
+    const planCurrency = (plan.currency || "USD").toUpperCase();
+    const ratesMap = await getRatesMap();
+    const planPriceINR = convertAmountWithRates(plan.price, planCurrency, "INR", ratesMap);
+
+    const result = await service.validateAndCalculateDiscount(code, req.user.userId, planSlug, planPriceINR);
     if (!result.valid) {
       return res.status(400).json({ success: false, message: result.message });
     }
@@ -101,10 +105,11 @@ const validateCouponCtrl = async (req, res) => {
       success: true, 
       message: "Coupon validated successfully", 
       data: {
-        discountAmount: result.discountAmount,
-        finalAmount: result.finalAmount,
+        discountAmount: Math.round(result.discountAmount),
+        finalAmount: Math.round(result.finalAmount),
         couponId: result.coupon._id,
-        code: result.coupon.code
+        code: result.coupon.code,
+        coupon: result.coupon
       } 
     });
   } catch (error) {

@@ -198,15 +198,22 @@ const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) 
   const num = Number(amount || 0);
   if (!num || from === to) return Number(num.toFixed(2));
 
-  // Fallback rates if DB rates not fetched yet
-  const r = rates || { USD: 1, INR: 86.5, EUR: 0.92 };
-  const fromRate = r[from] || (from === "INR" ? 86.5 : 1);
-  const toRate = r[to] || (to === "INR" ? 86.5 : 1);
+  // Align USD <-> INR conversion with mobile app UI (1 USD = 85.0 INR)
+  if (from === "USD" && to === "INR") {
+    return Math.round(num * 85.0);
+  }
+  if (from === "INR" && to === "USD") {
+    return Number((num / 85.0).toFixed(2));
+  }
 
-  const amountInUSD = from === "USD" ? num : num / fromRate;
-  const converted = to === "USD" ? amountInUSD : amountInUSD * toRate;
+  // Handle other currencies dynamically based on rates map
+  const fromRate = rates ? (rates[from] || 1) : 1;
+  const toRate = rates ? (rates[to] || 1) : 1;
 
-  return Number(converted.toFixed(2));
+  const amountInBase = num / fromRate;
+  const converted = amountInBase * toRate;
+
+  return Math.round(converted);
 };
 
 module.exports = {

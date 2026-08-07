@@ -39,7 +39,14 @@ const createOrder = async (userId, plan, couponCode = null) => {
     throw new Error("Cannot create a payment order for a free plan");
   }
   
-  const originalAmount = planDoc.price;
+  const { getRatesMap, convertAmountWithRates } = require("../currency/service");
+
+  const planCurrency = (planDoc.currency || "USD").toUpperCase();
+  const rawPrice = planDoc.price;
+
+  // Convert base plan price to INR for Razorpay checkout (Razorpay processes INR transactions)
+  const ratesMap = await getRatesMap();
+  const originalAmount = convertAmountWithRates(rawPrice, planCurrency, "INR", ratesMap);
   let finalAmount = originalAmount;
   let discountAmount = 0;
 
@@ -52,11 +59,11 @@ const createOrder = async (userId, plan, couponCode = null) => {
     discountAmount = discountResult.discountAmount;
   }
   
-  const amount = finalAmount;
+  const amountInPaise = Math.round(finalAmount * 100);
 
   // Razorpay API expects amount in subunit/paise (Rupees * 100)
   const order = await razorpay.orders.create({
-    amount: amount * 100,
+    amount: amountInPaise,
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
   });
@@ -64,7 +71,7 @@ const createOrder = async (userId, plan, couponCode = null) => {
   // Store standard amount (Rupees) in our local database
   const payment = await Payment.create({
     userId,
-    amount,
+    amount: Math.round(finalAmount),
     originalAmount,
     discountAmount,
     couponCode,
