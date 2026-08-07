@@ -10,6 +10,8 @@ const transactionSchema = z.object({
 
   amount: z.number().positive(),
 
+  currency: z.string().optional(),
+
   paymentMethod: z.enum([
     "Cash",
     "UPI",

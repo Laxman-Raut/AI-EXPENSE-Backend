@@ -14,9 +14,10 @@ const connectDB = async () => {
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     });
-    console.log(" MongoDB Connected Successfully");
+    console.log("✅ MongoDB Connected Successfully");
   } catch (error) {
-    console.error(" MongoDB Connection Error:", error.message);
+    console.error("❌ MongoDB Connection Error:", error.message);
+    console.error("💡 TIP: Please whitelist your current IP (0.0.0.0/0) in MongoDB Atlas -> Network Access.");
   }
 };
 

@@ -93,8 +93,12 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
 
 // Create Transaction
 const createTransaction = async (transactionData, userId) => {
+  const user = await User.findById(userId);
+  const txCurrency = transactionData.currency || user?.currency || "INR";
+
   let transaction = await Transaction.create({
     ...transactionData,
+    currency: txCurrency,
     user: userId,
   });
 
@@ -124,12 +128,6 @@ const createTransaction = async (transactionData, userId) => {
 
 // Get All Transactions
 const getTransactions = async (userId) => {
-  const [user, rates] = await Promise.all([
-    User.findById(userId).select("currency").lean(),
-    getRatesMap(),
-  ]);
-  const userCurrency = user?.currency || "INR";
-
   const transactions = await Transaction.find({ user: userId })
     .populate("bankAccount", "bankName nickname accountNumber isPrimary")
     .sort({
@@ -139,15 +137,7 @@ const getTransactions = async (userId) => {
 
   return transactions.map((transaction) => ({
     ...transaction,
-    originalAmount: transaction.amount,
-    originalCurrency: transaction.currency,
-    amount: convertAmountWithRates(
-      transaction.amount,
-      transaction.currency,
-      userCurrency,
-      rates
-    ),
-    currency: userCurrency,
+    currency: transaction.currency || "INR",
   }));
 };
 

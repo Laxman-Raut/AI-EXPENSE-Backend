@@ -178,11 +178,14 @@ const convertCurrency = async (amount, from, to) => {
   }
 };
 
+const mongoose = require("mongoose");
+
 /**
  * Fast in-memory / single DB query helper to get rates map
  */
 const getRatesMap = async () => {
   try {
+    if (mongoose.connection.readyState !== 1) return null;
     const currencyDoc = await CurrencyRate.findOne().lean();
     return currencyDoc?.rates || null;
   } catch (err) {
