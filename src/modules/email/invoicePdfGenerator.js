@@ -22,8 +22,8 @@ const generateInvoicePdfBuffer = ({
         margin: 40,
         size: "A4",
         info: {
-          Title: `Invoice - AI Expense Tracker (${orderId})`,
-          Author: "AI Expense Tracker Inc.",
+          Title: `Invoice - Expenso (${orderId})`,
+          Author: "Expenso Inc.",
           Subject: "Payment Receipt and Subscription Invoice",
         },
       });
@@ -60,7 +60,7 @@ const generateInvoicePdfBuffer = ({
         .fillColor("#FFFFFF")
         .fontSize(20)
         .font("Helvetica-Bold")
-        .text("AI EXPENSE TRACKER", 60, 56);
+        .text("EXPENSO", 60, 56);
 
       doc
         .fillColor("#94A3B8")
@@ -298,7 +298,7 @@ const generateInvoicePdfBuffer = ({
         .fontSize(8)
         .font("Helvetica")
         .text(
-          "This is an official computer-generated receipt and tax invoice issued by AI Expense Tracker Inc. No signature required.",
+          "This is an official computer-generated receipt and tax invoice issued by Expenso Inc. No signature required.",
           40,
           footerY + 12,
           { align: "center", width: 515 }

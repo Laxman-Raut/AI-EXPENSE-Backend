@@ -32,7 +32,7 @@ const authenticateQuery = (req, res, next) => {
 // ─── EXCEL EXPORT (ExcelJS — actually styleable) ───────
 const buildXlsx = async (transactions, res, currencySymbol = "₹") => {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "AI Expense Tracker";
+  wb.creator = "Expenso";
   wb.created = new Date();
 
   const ws = wb.addWorksheet("Transactions", {
@@ -141,7 +141,7 @@ const drawFooter = (doc, pageNumber) => {
     .fontSize(8)
     .fillColor(`#${COLORS.textMuted}`)
     .text(
-      `AI Expense Tracker · Generated ${dayjs().format("DD MMM YYYY, hh:mm A")}`,
+      `Expenso · Generated ${dayjs().format("DD MMM YYYY, hh:mm A")}`,
       TABLE_LEFT,
       810,
       { width: 300 }
@@ -170,7 +170,7 @@ const buildPdf = (transactions, res, currencySymbol = "₹") => {
     .fontSize(20)
     .font("Helvetica-Bold")
     .fillColor(`#${COLORS.primary}`)
-    .text("AI Expense Tracker", { align: "center" });
+    .text("Expenso", { align: "center" });
   doc
     .fontSize(11)
     .font("Helvetica")

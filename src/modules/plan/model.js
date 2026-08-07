@@ -107,6 +107,11 @@ const planSchema = new mongoose.Schema(
             type: String,
             default: "crown",
         },
+        // new field
+        razorpayPlanId: {
+    type: String,
+    default: "",
+},
 
         limits: {
             chatbotLimit: {

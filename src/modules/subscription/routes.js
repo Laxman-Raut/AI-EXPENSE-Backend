@@ -2,6 +2,7 @@ const express = require("express");
 
 const authenticate = require("../auth/auth.middleware");
 
+const controller = require("./autopay.controller");
 const {
   getCurrentSubscription,
   upgrade,
@@ -21,5 +22,11 @@ router.patch("/cancel", authenticate, cancel);
 router.get("/status", authenticate, status);
 
 router.get("/timeline", authenticate, getTimeline);
+
+router.post(
+    "/autopay/enable",
+    authenticate,
+    controller.enableAutoPay
+);
 
 module.exports = router;
