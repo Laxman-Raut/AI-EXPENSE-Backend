@@ -84,6 +84,8 @@ app.use("/api/banks", bankRoutes);
 app.use("/api/bank", bankRoutes);
 app.use("/api/savings", savingsRoutes);
 app.use("/api/currency", currencyRoutes);
+app.use("/api/v1/currency", currencyRoutes);
+
 // Health Check
 app.get("/", (req, res) => {
   res.json({
