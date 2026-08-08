@@ -264,9 +264,7 @@ const sendSplitExpenseEmail = async ({
                     <table width="100%" cellspacing="0" cellpadding="0" style="margin-top: 28px;">
                       <tr>
                         <td align="center">
-                          <a href="#" style="display: inline-block; background-color: #8A3FFC; color: #FFFFFF; font-size: 15px; font-weight: 700; padding: 14px 32px; border-radius: 50px; text-decoration: none; box-shadow: 0 4px 16px rgba(138,63,252,0.4);">
-                            Open Expenso
-                          </a>
+                          
                         </td>
                       </tr>
                     </table>

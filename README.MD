@@ -4,6 +4,46 @@ This is the backend API server for the **AI Expense Tracker** web and mobile app
 
 ---
 
+## 🏗️ System Architecture
+
+The overall AI Expense Tracker ecosystem consists of three main components collaborating seamlessly:
+
+```mermaid
+graph TD
+    %% Clients
+    subgraph Clients ["Client Layer"]
+        A["📱 Mobile App (React Native)"]
+        B["💻 Web Dashboard (Next.js 15)"]
+    end
+
+    %% Backend Services
+    subgraph Backend ["Backend & Logic Layer"]
+        C["⚡ Express API Server (Node.js)"]
+        D["⏰ Background Schedulers (Cron)"]
+    end
+
+    %% External Services
+    subgraph External ["Data & External Services"]
+        DB[("🍃 MongoDB (Mongoose)")]
+        Gemini["🧠 Google Gemini AI"]
+        Razorpay["💳 Razorpay Gateway"]
+        Cloudinary["☁️ Cloudinary Storage"]
+        Firebase["🔥 Firebase Auth/FCM"]
+    end
+
+    %% Interactions
+    A -->|HTTP/JSON API| C
+    B -->|HTTP/JSON API & HttpOnly Cookies| C
+    C <--> DB
+    C -->|AI Processing| Gemini
+    C -->|Subscriptions| Razorpay
+    C -->|Receipt Storage| Cloudinary
+    C -->|Auth & Notifications| Firebase
+    D -->|Auto-Expiry & Alert Sweeps| DB
+```
+
+---
+
 ## 📂 Project Structure & Architecture
 
 The application adopts a **Modular Architecture**. Instead of separating the project strictly by layers (controllers folder, routes folder, etc.), the codebase is grouped by domain modules inside `src/modules/`. This design makes it highly maintainable and easy to scale.
@@ -132,3 +172,6 @@ To ensure the subscription state is always accurate, the system operates on two 
      ```bash
      npm start
      ```
+
+
+Frontend Repository Link :- https://github.com/Laxman-Raut/AI-EXPENSE-Frontend.git
