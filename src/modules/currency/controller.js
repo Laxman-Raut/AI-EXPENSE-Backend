@@ -59,8 +59,19 @@ const convertCurrency = async (req, res) => {
   }
 };
 
+const getExchangeRatesForFrontend = async (req, res) => {
+  try {
+    const result = await currencyService.getExchangeRateForFrontend();
+    return res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   updateRates,
   getRates,
    convertCurrency,
+  getExchangeRatesForFrontend,
 };

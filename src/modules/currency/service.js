@@ -250,6 +250,45 @@ const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) 
   return roundCurrency(converted, normTo);
 };
 
+/**
+ * Returns a clean exchange rates response for frontend consumption.
+ * Used by Dashboard and Mobile App to get live rates instead of hardcoded values.
+ */
+const getExchangeRateForFrontend = async () => {
+  try {
+    const currencyDoc = await CurrencyRate.findOne().lean();
+    if (!currencyDoc || !currencyDoc.rates) {
+      return {
+        baseCurrency: "USD",
+        rates: { USD: 1, INR: 85.0, EUR: 0.92, GBP: 0.79 },
+        usdToInr: 85.0,
+        fetchedAt: new Date().toISOString(),
+        source: "fallback",
+      };
+    }
+    const usdRate = Number(currencyDoc.rates["USD"] || 1);
+    const inrRate = Number(currencyDoc.rates["INR"] || 85);
+    const usdToInr = usdRate > 0 ? Number((inrRate / usdRate).toFixed(4)) : 85.0;
+
+    return {
+      baseCurrency: currencyDoc.baseCurrency || "USD",
+      rates: currencyDoc.rates,
+      usdToInr,
+      fetchedAt: currencyDoc.fetchedAt || currencyDoc.updatedAt,
+      source: "live",
+    };
+  } catch (err) {
+    console.error("[Currency] Failed to get rates for frontend:", err.message);
+    return {
+      baseCurrency: "USD",
+      rates: { USD: 1, INR: 85.0 },
+      usdToInr: 85.0,
+      fetchedAt: new Date().toISOString(),
+      source: "fallback",
+    };
+  }
+};
+
 module.exports = {
   fetchLatestRates,
   getRates,
@@ -258,4 +297,5 @@ module.exports = {
   convertAmountWithRates,
   getUsdInrExchangeRate,
   roundCurrency,
+  getExchangeRateForFrontend,
 };

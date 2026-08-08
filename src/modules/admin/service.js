@@ -113,6 +113,7 @@ const getDashboardService = async () => {
                 total: totalRevenue,
                 today: todayRevenue,
                 monthly: monthlyRevenue,
+                revenueCurrency: "INR",
             },
 
             plans: {
