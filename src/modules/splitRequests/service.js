@@ -84,33 +84,35 @@ const createSplitRequest = async (data, userId) => {
 
   const createdSplit = await splitRequestRepository.createSplitRequest(data);
 
-  // Send Email to all participants except payer
-try {
-  const payer = payerDoc || await User.findById(payerIdStr);
+  // Send Email to all participants except payer in background (non-blocking)
+  (async () => {
+    try {
+      const payer = payerDoc || await User.findById(payerIdStr);
+      const emailPromises = createdSplit.participants.map(async (participant) => {
+        const participantId = getUserId(participant.user);
 
-  for (const participant of createdSplit.participants) {
-    const participantId = getUserId(participant.user);
+        // Don't send email to payer
+        if (participantId === payerIdStr) return;
 
-    // Don't send email to payer
-    if (participantId === payerIdStr) continue;
+        const member = await User.findById(participantId);
 
-    const member = await User.findById(participantId);
+        if (!member || !member.email) return;
 
-    if (!member || !member.email) continue;
-
-    await sendSplitExpenseEmail({
-      userEmail: member.email,
-      userName: member.fullName,
-      expenseTitle: createdSplit.title,
-      totalAmount: createdSplit.totalAmount,
-      yourShare: participant.amount,
-      paidBy: payer.fullName,
-      date: createdSplit.createdAt,
-    });
-  }
-} catch (error) {
-  console.error("[Split] Email sending failed:", error.message);
-}
+        await sendSplitExpenseEmail({
+          userEmail: member.email,
+          userName: member.fullName,
+          expenseTitle: createdSplit.title,
+          totalAmount: createdSplit.totalAmount,
+          yourShare: participant.amount,
+          paidBy: payer.fullName,
+          date: createdSplit.createdAt,
+        });
+      });
+      await Promise.all(emailPromises);
+    } catch (error) {
+      console.error("[Split] Background email sending failed:", error.message);
+    }
+  })();
   // Automatically record Expense transaction for the payer
   try {
     await Transaction.create({
