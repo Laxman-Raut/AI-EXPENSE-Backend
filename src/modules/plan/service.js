@@ -21,13 +21,13 @@ const createPlanService = async (planData, adminId) => {
     throw new Error("Plan already exists with this slug.");
   }
 
-  const settings = await SystemSettings.findOne();
-  const baseCurrency = (planData.currency || (settings && settings.currency) || "INR").toUpperCase();
+  const baseCurrency = "INR";
 
   const features = planData.features ? [...new Set(planData.features)] : [];
 
   return await createPlan({
     ...planData,
+    price: Number(planData.price || 0),
     currency: baseCurrency,
     features,
     createdBy: adminId,

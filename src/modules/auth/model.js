@@ -83,6 +83,21 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
+    monthlyBudgetINR: {
+      type: Number,
+      default: 0,
+    },
+
+    monthlyBudgetUSD: {
+      type: Number,
+      default: 0,
+    },
+
+    monthlyBudgetCurrency: {
+      type: String,
+      default: "INR",
+    },
+
     categoryBudgets: {
       type: Map,
       of: Number,

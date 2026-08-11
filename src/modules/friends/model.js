@@ -27,5 +27,7 @@ const friendSchema = new mongoose.Schema(
 
 // Prevent duplicate friend requests
 friendSchema.index({ sender: 1, receiver: 1 }, { unique: true });
+friendSchema.index({ sender: 1, status: 1 });
+friendSchema.index({ receiver: 1, status: 1 });
 
 module.exports = mongoose.model("Friend", friendSchema);

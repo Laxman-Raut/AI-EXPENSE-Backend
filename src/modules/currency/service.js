@@ -1,5 +1,20 @@
 const axios = require("axios");
 const CurrencyRate = require("./model");
+let cachedRatesDoc = null;
+let cachedRatesFetchedAt = 0;
+const RATES_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const getCachedRatesDoc = async () => {
+  if (cachedRatesDoc && Date.now() - cachedRatesFetchedAt < RATES_CACHE_TTL_MS) {
+    return cachedRatesDoc;
+  }
+  const doc = await CurrencyRate.findOne().lean();
+  if (doc) {
+    cachedRatesDoc = doc;
+    cachedRatesFetchedAt = Date.now();
+  }
+  return doc || null;
+};
 const fetchLatestRates = async () => {
   try {
 let response;
@@ -65,7 +80,7 @@ if (!response || response.data?.result !== "success") {
       if (!currency) {
         const defaultRates = {
           USD: 1,
-          INR: 85.0,
+          INR: 95.24,
           EUR: 0.92,
           GBP: 0.79,
           AED: 3.67,
@@ -78,7 +93,7 @@ if (!response || response.data?.result !== "success") {
           rates: defaultRates,
           fetchedAt: new Date(),
         });
-        console.log("⚠️ Applied fallback default exchange rates (1 USD = 85 INR).");
+        console.log("⚠️ Applied fallback default exchange rates (1 USD = 95.24 INR).");
       }
     } catch (fallbackErr) {
       console.error("Failed to seed fallback exchange rates:", fallbackErr.message);
@@ -94,7 +109,7 @@ if (!response || response.data?.result !== "success") {
 // Get stored exchange rates
 const getRates = async () => {
   try {
-    const currency = await CurrencyRate.findOne();
+    const currency = await getCachedRatesDoc();
 
     if (!currency) {
       return {
@@ -118,7 +133,7 @@ const getRates = async () => {
 };
 const convertCurrency = async (amount, from, to) => {
   try {
-    const currency = await CurrencyRate.findOne();
+    const currency = await getCachedRatesDoc();
 
     if (!currency) {
       return {
@@ -186,7 +201,7 @@ const mongoose = require("mongoose");
 const getRatesMap = async () => {
   try {
     if (mongoose.connection.readyState !== 1) return null;
-    const currencyDoc = await CurrencyRate.findOne().lean();
+    const currencyDoc = await getCachedRatesDoc();
     return currencyDoc?.rates || null;
   } catch (err) {
     console.error("Error fetching rates map:", err);
@@ -256,19 +271,19 @@ const convertAmountWithRates = (amount, from = "INR", to = "INR", rates = null) 
  */
 const getExchangeRateForFrontend = async () => {
   try {
-    const currencyDoc = await CurrencyRate.findOne().lean();
+    const currencyDoc = await getCachedRatesDoc();
     if (!currencyDoc || !currencyDoc.rates) {
       return {
         baseCurrency: "USD",
-        rates: { USD: 1, INR: 85.0, EUR: 0.92, GBP: 0.79 },
-        usdToInr: 85.0,
+        rates: { USD: 1, INR: 95.24, EUR: 0.92, GBP: 0.79 },
+        usdToInr: 95.24,
         fetchedAt: new Date().toISOString(),
         source: "fallback",
       };
     }
     const usdRate = Number(currencyDoc.rates["USD"] || 1);
-    const inrRate = Number(currencyDoc.rates["INR"] || 85);
-    const usdToInr = usdRate > 0 ? Number((inrRate / usdRate).toFixed(4)) : 85.0;
+    const inrRate = Number(currencyDoc.rates["INR"] || 95.24);
+    const usdToInr = usdRate > 0 ? Number((inrRate / usdRate).toFixed(4)) : 95.24;
 
     return {
       baseCurrency: currencyDoc.baseCurrency || "USD",
@@ -281,12 +296,51 @@ const getExchangeRateForFrontend = async () => {
     console.error("[Currency] Failed to get rates for frontend:", err.message);
     return {
       baseCurrency: "USD",
-      rates: { USD: 1, INR: 85.0 },
-      usdToInr: 85.0,
+      rates: { USD: 1, INR: 95.24 },
+      usdToInr: 95.24,
       fetchedAt: new Date().toISOString(),
       source: "fallback",
     };
   }
+};
+
+/**
+ * Generates a historical dual-currency snapshot for financial records.
+ * Conceptually stores:
+ * {
+ *   originalAmount,
+ *   originalCurrency,
+ *   amountINR,
+ *   amountUSD,
+ *   exchangeRate (1 USD = X INR),
+ *   exchangeRateTimestamp
+ * }
+ */
+const createCurrencySnapshot = async (amount, currency = "INR") => {
+  const num = Number(amount || 0);
+  const inputCurrency = String(currency || "INR").toUpperCase().trim() === "USD" ? "USD" : "INR";
+  const ratesMap = await getRatesMap();
+  const usdToInrRate = getUsdInrExchangeRate(ratesMap);
+
+  let amountINR = 0;
+  let amountUSD = 0;
+
+  if (inputCurrency === "INR") {
+    amountINR = roundCurrency(num, "INR");
+    amountUSD = roundCurrency(num / usdToInrRate, "USD");
+  } else {
+    amountUSD = roundCurrency(num, "USD");
+    amountINR = roundCurrency(num * usdToInrRate, "INR");
+  }
+
+  return {
+    originalAmount: num,
+    originalCurrency: inputCurrency,
+    amountINR,
+    amountUSD,
+    exchangeRate: usdToInrRate,
+    exchangeRateTimestamp: new Date(),
+  };
 };
 
 module.exports = {
@@ -298,4 +352,5 @@ module.exports = {
   getUsdInrExchangeRate,
   roundCurrency,
   getExchangeRateForFrontend,
+  createCurrencySnapshot,
 };

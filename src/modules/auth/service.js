@@ -426,11 +426,26 @@ const updateProfile = async (userId, updateData) => {
   const allowedUpdates = {};
   if (updateData.fullName !== undefined) allowedUpdates.fullName = updateData.fullName;
   if (updateData.currency !== undefined) allowedUpdates.currency = updateData.currency;
-  if (updateData.monthlyBudget !== undefined) allowedUpdates.monthlyBudget = Number(updateData.monthlyBudget);
   if (updateData.mobile !== undefined) allowedUpdates.mobile = updateData.mobile;
   if (updateData.age !== undefined) allowedUpdates.age = Number(updateData.age);
   if (updateData.upiId !== undefined) allowedUpdates.upiId = updateData.upiId;
   if (updateData.categoryBudgets !== undefined) allowedUpdates.categoryBudgets = updateData.categoryBudgets;
+
+  if (updateData.monthlyBudget !== undefined) {
+    const existingUser = await User.findById(userId).lean();
+    const budgetVal = Number(updateData.monthlyBudget);
+    const inputCurr = updateData.currency || existingUser?.currency || "INR";
+
+    allowedUpdates.monthlyBudget = budgetVal;
+    if (budgetVal > 0) {
+      const currencyService = require("../currency/service");
+      const snap = await currencyService.createCurrencySnapshot(budgetVal, inputCurr);
+      allowedUpdates.monthlyBudgetINR = snap.amountINR;
+      allowedUpdates.monthlyBudgetUSD = snap.amountUSD;
+      allowedUpdates.monthlyBudgetCurrency = inputCurr;
+    }
+  }
+
   if (updateData.avatar !== undefined) {
     allowedUpdates.avatar = typeof updateData.avatar === "string" ? { url: updateData.avatar } : updateData.avatar;
   }

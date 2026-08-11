@@ -33,6 +33,11 @@ const planSchema = new mongoose.Schema(
             default: "INR",
         },
 
+        baseCurrency: {
+            type: String,
+            default: "INR",
+        },
+
         billingCycle: {
             type: String,
             enum: ["monthly", "yearly", "lifetime"],
@@ -157,6 +162,8 @@ planSchema.index(
     { slug: 1, version: 1 },
     { unique: true }
 );
+
+planSchema.index({ slug: 1, isCurrent: 1 });
 
 const Plan = mongoose.model("Plan", planSchema);
 

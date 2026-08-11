@@ -29,8 +29,21 @@ const recurringTransactionSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: 1,
+      min: 0,
     },
+
+    currency: {
+      type: String,
+      default: "INR",
+    },
+
+    originalAmount: { type: Number, default: null },
+    originalCurrency: { type: String, default: "INR" },
+    amountINR: { type: Number, default: null },
+    amountUSD: { type: Number, default: null },
+    exchangeRate: { type: Number, default: null },
+    exchangeRateTimestamp: { type: Date, default: null },
+
 
     paymentMethod: {
       type: String,

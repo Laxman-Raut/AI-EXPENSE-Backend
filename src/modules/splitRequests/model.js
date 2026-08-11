@@ -26,6 +26,12 @@ const splitRequestSchema = new mongoose.Schema(
       min: 1,
     },
 
+    originalCurrency: { type: String, default: "INR" },
+    totalAmountINR: { type: Number, default: null },
+    totalAmountUSD: { type: Number, default: null },
+    exchangeRate: { type: Number, default: null },
+    exchangeRateTimestamp: { type: Date, default: null },
+
     paidBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -65,6 +71,10 @@ const splitRequestSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+
+        amountINR: { type: Number, default: null },
+        amountUSD: { type: Number, default: null },
+
 
         percentage: {
           type: Number,

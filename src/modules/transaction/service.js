@@ -2,7 +2,13 @@
 const {
   getRatesMap,
   convertAmountWithRates,
+  createCurrencySnapshot,
 } = require("../currency/service");
+const {
+  hydrateTransaction,
+  selectStoredAmount,
+  normalizeCurrency,
+} = require("../financial/service");
 const Transaction = require("./model");
 const Bank = require("../bank/model");
 const User = require("../auth/model");
@@ -28,7 +34,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
       ],
     });
 
-    const totalExpense = monthlyExpenses.reduce((sum, item) => sum + item.amount, 0);
+    const totalExpense = monthlyExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
     const prevExpense = totalExpense - amount;
 
     // 1. Overall Monthly Budget Check
@@ -58,7 +64,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
 
     if (categoryBudgetLimit && categoryBudgetLimit > 0) {
       const categoryExpenses = monthlyExpenses.filter(item => item.category === category);
-      const totalCategoryExpense = categoryExpenses.reduce((sum, item) => sum + item.amount, 0);
+      const totalCategoryExpense = categoryExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
       const prevCategoryExpense = totalCategoryExpense - amount;
 
       const prevCategoryPercent = (prevCategoryExpense / categoryBudgetLimit) * 100;
@@ -94,40 +100,53 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
 // Create Transaction
 const createTransaction = async (transactionData, userId) => {
   const user = await User.findById(userId);
-  const txCurrency = transactionData.currency || user?.currency || "INR";
+  const txCurrency = normalizeCurrency(transactionData.currency || user?.currency || "INR");
+
+  // Create dual-currency snapshot at creation time
+  const snapshot = await createCurrencySnapshot(transactionData.amount, txCurrency);
 
   let transaction = await Transaction.create({
     ...transactionData,
     currency: txCurrency,
     user: userId,
+    ...snapshot,
   });
 
   if (transaction.bankAccount) {
     transaction = await transaction.populate("bankAccount");
   }
 
-  try {
-    // 1. Send transaction addition notification
-    const typeLabel = transaction.type === "income" ? "Income" : "Expense";
-    await createNotification({
-      user: userId,
-      title: `New ${typeLabel} Added`,
-      body: `You successfully added ${typeLabel.toLowerCase()} of ${transaction.amount} for ${transaction.category}.`,
-      type: transaction.type === "income" ? "income" : "expense",
-      data: { transactionId: transaction._id }
-    });
+  // Run push notifications & budget threshold checks asynchronously in background
+  setImmediate(async () => {
+    try {
+      const typeLabel = transaction.type === "income" ? "Income" : "Expense";
+      await createNotification({
+        user: userId,
+        title: `New ${typeLabel} Added`,
+        body: `You successfully added ${typeLabel.toLowerCase()} of ${transaction.amount} for ${transaction.category}.`,
+        type: transaction.type === "income" ? "income" : "expense",
+        data: { transactionId: transaction._id }
+      });
 
-    // 2. Budget checks and notifications
-    await checkBudgetLimitsAndNotify(userId, transaction.category, transaction.amount, transaction.type === "expense");
-  } catch (notificationError) {
-    console.error("Failed to trigger transaction/budget notification:", notificationError);
-  }
+      await checkBudgetLimitsAndNotify(
+        userId,
+        transaction.category,
+        transaction.amountINR || transaction.amount,
+        transaction.type === "expense"
+      );
+    } catch (notificationError) {
+      console.error("Failed to trigger transaction/budget notification:", notificationError);
+    }
+  });
 
   return transaction;
 };
 
 // Get All Transactions
 const getTransactions = async (userId) => {
+  const user = await User.findById(userId).lean();
+  const userCurr = normalizeCurrency(user?.currency || "INR");
+
   const transactions = await Transaction.find({ user: userId })
     .populate("bankAccount", "bankName nickname accountNumber isPrimary")
     .sort({
@@ -135,13 +154,13 @@ const getTransactions = async (userId) => {
     })
     .lean();
 
-  return transactions.map((transaction) => ({
-    ...transaction,
-    currency: transaction.currency || "INR",
-  }));
+  return transactions.map((tx) => hydrateTransaction(tx, userCurr));
 };
 
+
 const getTransactionById = async (id, userId) => {
+  const user = await User.findById(userId).lean();
+  const userCurr = normalizeCurrency(user?.currency || "INR");
   const transaction = await Transaction.findOne({
     _id: id,
     user: userId,
@@ -151,24 +170,38 @@ const getTransactionById = async (id, userId) => {
     throw new Error("Transaction not found");
   }
 
-  return transaction;
+  return hydrateTransaction(transaction.toObject ? transaction.toObject() : transaction, userCurr);
 };
 const updateTransaction = async (id, userId, updateData) => {
+  const existing = await Transaction.findOne({ _id: id, user: userId });
+  if (!existing) {
+    throw new Error("Transaction not found");
+  }
+
+  let finalUpdateData = { ...updateData };
+  if (updateData.amount !== undefined || updateData.currency !== undefined) {
+    const newAmt = updateData.amount !== undefined ? updateData.amount : existing.amount;
+    const newCurr = normalizeCurrency(updateData.currency !== undefined ? updateData.currency : (existing.currency || "INR"));
+    const snapshot = await createCurrencySnapshot(newAmt, newCurr);
+    finalUpdateData = {
+      ...finalUpdateData,
+      amount: newAmt,
+      currency: newCurr,
+      ...snapshot,
+    };
+  }
+
   const transaction = await Transaction.findOneAndUpdate(
     { _id: id, user: userId },
-    updateData,
+    finalUpdateData,
     {
       new: true,
       runValidators: true,
     }
   ).populate("bankAccount");
 
-  if (!transaction) {
-    throw new Error("Transaction not found");
-  }
-
   try {
-    await checkBudgetLimitsAndNotify(userId, transaction.category, transaction.amount, transaction.type === "expense");
+    await checkBudgetLimitsAndNotify(userId, transaction.category, transaction.amountINR || transaction.amount, transaction.type === "expense");
   } catch (err) {
     console.error("Failed to run budget checks on update:", err);
   }
@@ -191,18 +224,25 @@ const deleteTransaction = async (id, userId) => {
 
 
 const syncTransactions = async (userId, transactions = []) => {
+  const user = await User.findById(userId);
   const results = [];
   for (const item of transactions) {
     const localId = item.localId || item.id;
+    const itemCurr = normalizeCurrency(item.currency || user?.currency || "INR");
+    const snapshot = await createCurrencySnapshot(item.amount, itemCurr);
+
     const transactionData = {
       user: userId,
       type: item.type,
       category: item.category,
       description: item.description,
       amount: item.amount,
+      currency: itemCurr,
+      ...snapshot,
       paymentMethod: item.paymentMethod || "UPI",
       transactionDate: item.transactionDate ? new Date(item.transactionDate) : new Date(),
       note: item.note || "",
+      bankAccount: item.bankAccount || null,
     };
 
     let doc;
@@ -223,6 +263,7 @@ const syncTransactions = async (userId, transactions = []) => {
   }
   return results;
 };
+
 
 module.exports = {
   createTransaction,

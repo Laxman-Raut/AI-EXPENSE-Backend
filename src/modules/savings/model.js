@@ -6,6 +6,16 @@ const savingsTransactionSchema = new mongoose.Schema({
     required: [true, "Transaction amount is required"],
     min: [0.01, "Transaction amount must be greater than 0"],
   },
+  currency: {
+    type: String,
+    default: "INR",
+  },
+  originalAmount: { type: Number, default: null },
+  originalCurrency: { type: String, default: "INR" },
+  amountINR: { type: Number, default: null },
+  amountUSD: { type: Number, default: null },
+  exchangeRate: { type: Number, default: null },
+  exchangeRateTimestamp: { type: Date, default: null },
   type: {
     type: String,
     enum: ["deposit", "withdraw", "transfer_in", "transfer_out"],
@@ -61,11 +71,18 @@ const savingsJarSchema = new mongoose.Schema(
       default: null,
       min: [0, "Target amount cannot be negative"],
     },
+    targetAmountINR: { type: Number, default: null },
+    targetAmountUSD: { type: Number, default: null },
     currentAmount: {
       type: Number,
       default: 0,
       min: [0, "Current amount cannot be negative"],
     },
+    currentAmountINR: { type: Number, default: 0 },
+    currentAmountUSD: { type: Number, default: 0 },
+    originalCurrency: { type: String, default: "INR" },
+    exchangeRate: { type: Number, default: null },
+    exchangeRateTimestamp: { type: Date, default: null },
     notes: {
       type: String,
       trim: true,
@@ -79,6 +96,7 @@ const savingsJarSchema = new mongoose.Schema(
     },
     transactions: [savingsTransactionSchema],
   },
+
   {
     timestamps: true,
   }
@@ -94,6 +112,8 @@ savingsJarSchema.methods.updateStatusBasedOnTarget = function () {
     }
   }
 };
+
+savingsJarSchema.index({ user: 1, status: 1, updatedAt: -1 });
 
 const SavingsJar = mongoose.model("SavingsJar", savingsJarSchema);
 

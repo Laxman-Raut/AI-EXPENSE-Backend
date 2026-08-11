@@ -3,11 +3,24 @@ const Transaction = require("../transaction/model");
 const User = require("../auth/model");
 const currencyService = require("../currency/service");
 
+// Helper to pick historical pre-calculated snapshot based on user's target currency
+const getStoredAmountForUser = (t, targetCurrency, rate = 95.24) => {
+  if (targetCurrency === 'USD') {
+    if (t.amountUSD !== null && t.amountUSD !== undefined) {
+      return t.amountUSD;
+    }
+    return t.currency === 'USD' ? t.amount : Number((t.amount / rate).toFixed(2));
+  }
+  if (t.amountINR !== null && t.amountINR !== undefined) {
+    return t.amountINR;
+  }
+  return t.currency === 'INR' ? t.amount : Number((t.amount * rate).toFixed(2));
+};
+
 // Monthly Analytics / Trend Report
 const getMonthlyAnalytics = async (userId, range = 'monthly') => {
   const user = await User.findById(userId);
   const targetCurrency = user?.currency || 'INR';
-  const rates = await currencyService.getRatesMap();
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -34,7 +47,7 @@ const getMonthlyAnalytics = async (userId, range = 'monthly') => {
   transactions.forEach((t) => {
     const d = new Date(t.transactionDate || t.createdAt);
     const key = range === 'yearly' ? d.getMonth() + 1 : d.getDate();
-    const converted = currencyService.convertAmountWithRates(t.amount, t.currency || 'INR', targetCurrency, rates);
+    const converted = getStoredAmountForUser(t, targetCurrency);
 
     if (!map.has(key)) {
       map.set(key, { income: 0, expense: 0 });
@@ -62,7 +75,6 @@ const getMonthlyAnalytics = async (userId, range = 'monthly') => {
 const getCategoryAnalytics = async (userId, range = 'monthly') => {
   const user = await User.findById(userId);
   const targetCurrency = user?.currency || 'INR';
-  const rates = await currencyService.getRatesMap();
 
   const now = new Date();
   let start, end;
@@ -87,7 +99,7 @@ const getCategoryAnalytics = async (userId, range = 'monthly') => {
   const catMap = new Map();
   transactions.forEach((t) => {
     const cat = t.category || 'Others';
-    const converted = currencyService.convertAmountWithRates(t.amount, t.currency || 'INR', targetCurrency, rates);
+    const converted = getStoredAmountForUser(t, targetCurrency);
     catMap.set(cat, (catMap.get(cat) || 0) + converted);
   });
 
@@ -151,7 +163,7 @@ const getBudgetUtilization = async (userId, range = 'monthly') => {
 
   let currentSpent = 0;
   transactions.forEach((t) => {
-    currentSpent += currencyService.convertAmountWithRates(t.amount, t.currency || 'INR', targetCurrency, rates);
+    currentSpent += getStoredAmountForUser(t, targetCurrency);
   });
 
   currentSpent = Number(currentSpent.toFixed(2));
@@ -180,7 +192,6 @@ const getBudgetUtilization = async (userId, range = 'monthly') => {
 const getYearlyComparison = async (userId) => {
   const user = await User.findById(userId);
   const targetCurrency = user?.currency || 'INR';
-  const rates = await currencyService.getRatesMap();
 
   const now = new Date();
   const thisYear = now.getFullYear();
@@ -205,7 +216,7 @@ const getYearlyComparison = async (userId) => {
     let totalExpense = 0;
 
     transactions.forEach((t) => {
-      const converted = currencyService.convertAmountWithRates(t.amount, t.currency || 'INR', targetCurrency, rates);
+      const converted = getStoredAmountForUser(t, targetCurrency);
       if (t.type === 'income') totalIncome += converted;
       if (t.type === 'expense') totalExpense += converted;
     });
@@ -244,3 +255,4 @@ module.exports = {
   getBudgetUtilization,
   getYearlyComparison,
 };
+
