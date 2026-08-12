@@ -113,6 +113,7 @@ savingsJarSchema.methods.updateStatusBasedOnTarget = function () {
   }
 };
 
+savingsJarSchema.index({ _id: 1, user: 1 });
 savingsJarSchema.index({ user: 1, status: 1, updatedAt: -1 });
 
 const SavingsJar = mongoose.model("SavingsJar", savingsJarSchema);
