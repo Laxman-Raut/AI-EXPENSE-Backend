@@ -61,7 +61,7 @@ async function runMigration() {
     console.log(`Successfully updated ${txUpdated} transactions.`);
 
     // 2. Backfill Savings Jars
-    console.log("\n--- 2. Backfilling Savings Jars ---");
+    console.log("\n--- 2. Backfilling Savings Jars ---"); 
     const jars = await SavingsJar.find({});
     let jarsUpdated = 0;
     for (const jar of jars) {
