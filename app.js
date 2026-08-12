@@ -26,7 +26,17 @@ const upiRoutes = require("./src/modules/upi/routes");
 const bankRoutes = require("./src/modules/bank/routes");
 const savingsRoutes = require("./src/modules/savings/routes");
 const currencyRoutes = require("./src/modules/currency/routes");
+const compression = require("compression");
+
 const app = express();
+
+// Enable GZIP HTTP response compression
+app.use(compression());
+
+// Health Check Endpoint (Server Warm-up Ping)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // Middleware
 // CORS Configuration — supports both Mobile (no credentials) and Dashboard (with credentials/cookies)

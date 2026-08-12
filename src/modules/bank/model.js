@@ -62,4 +62,7 @@ const bankSchema = new mongoose.Schema(
   }
 );
 
+// Compound index for sorted bank account lists
+bankSchema.index({ user: 1, isPrimary: -1, createdAt: -1 });
+
 module.exports = mongoose.model("Bank", bankSchema);

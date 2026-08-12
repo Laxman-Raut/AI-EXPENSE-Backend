@@ -106,7 +106,7 @@ const getJars = async (userId, statusFilter = null) => {
 
   recentTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const goalProgress = await getSavingsGoalProgress(userId);
+  const goalProgress = await getSavingsGoalProgress(userId, targetCurrency, allJars);
 
   return {
     jars,
@@ -291,7 +291,7 @@ const deposit = async (userId, jarId, amount, notes = "") => {
 
   jar.updateStatusBasedOnTarget();
   await jar.save();
-  return (await SavingsJar.findOne({ _id: jarId, user: userId }).lean());
+  return formatJarForCurrency(jar.toObject(), userCurrency);
 };
 
 const withdraw = async (userId, jarId, amount, notes = "") => {
@@ -359,7 +359,7 @@ const withdraw = async (userId, jarId, amount, notes = "") => {
 
   jar.updateStatusBasedOnTarget();
   await jar.save();
-  return (await SavingsJar.findOne({ _id: jarId, user: userId }).lean());
+  return formatJarForCurrency(jar.toObject(), userCurrency);
 };
 
 const transfer = async (userId, fromJarId, toJarId, amount, notes = "") => {
@@ -560,7 +560,7 @@ const getPeriodDates = (period) => {
   return { startDate, endDate };
 };
 
-const getSavingsGoalProgress = async (userId) => {
+const getSavingsGoalProgress = async (userId, preloadedCurrency = null, preloadedJars = null) => {
   const goalDoc = await SavingsGoal.findOne({ user: userId });
   if (!goalDoc) {
     return {
@@ -571,9 +571,9 @@ const getSavingsGoalProgress = async (userId) => {
 
   const { targetAmount, targetAmountINR, targetAmountUSD, originalAmount, originalCurrency, currency, exchangeRate, exchangeRateTimestamp, period, notes } = goalDoc;
   const { startDate, endDate } = getPeriodDates(period);
-  const targetCurrency = await getUserCurrency(userId);
+  const targetCurrency = preloadedCurrency || (await getUserCurrency(userId));
 
-  const jars = await SavingsJar.find({ user: userId }).lean();
+  const jars = preloadedJars || (await SavingsJar.find({ user: userId }).lean());
   let savedInPeriodINR = 0;
   let savedInPeriodUSD = 0;
 

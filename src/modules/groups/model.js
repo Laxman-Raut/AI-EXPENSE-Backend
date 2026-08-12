@@ -44,4 +44,8 @@ const groupSchema = new mongoose.Schema(
   }
 );
 
+// Indexes for high-performance group filtering
+groupSchema.index({ members: 1, isActive: 1 });
+groupSchema.index({ createdBy: 1 });
+
 module.exports = mongoose.model("Group", groupSchema);

@@ -64,6 +64,7 @@ const getDashboardSummary = async (userId) => {
   const userCurrency = normalizeCurrency(user?.currency || "INR");
 
   const transactions = await Transaction.find({ user: userId })
+    .populate("bankAccount", "bankName nickname accountNumber isPrimary")
     .select(
       "type category description amount currency originalAmount originalCurrency amountINR amountUSD exchangeRate exchangeRateTimestamp transactionDate createdAt bankAccount note paymentMethod"
     )
@@ -73,14 +74,7 @@ const getDashboardSummary = async (userId) => {
   const totals = aggregateTransactions(transactions, userCurrency);
   const budgetSnapshot = await buildBudgetSnapshot(user, userCurrency, totals.monthlyExpense);
 
-  const recentTransactions = await Transaction.find({ user: userId })
-    .populate("bankAccount", "bankName nickname accountNumber isPrimary")
-    .select(
-      "type category description amount currency originalAmount originalCurrency amountINR amountUSD exchangeRate exchangeRateTimestamp transactionDate createdAt bankAccount note paymentMethod"
-    )
-    .sort({ transactionDate: -1, createdAt: -1 })
-    .limit(5)
-    .lean();
+  const recentTransactions = transactions.slice(0, 5);
 
   const monthTrend = buildTrend(transactions, userCurrency);
   const categoryBreakdown = buildCategoryBreakdown(transactions, userCurrency);
