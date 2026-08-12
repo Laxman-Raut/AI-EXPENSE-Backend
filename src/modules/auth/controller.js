@@ -87,7 +87,7 @@ const login = async (req, res) => {
       res.cookie("access_token", tokenPair.accessToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? "strict" : "lax",
+        sameSite: isProduction ? "none" : "lax",
         maxAge: tokenPair.accessTokenExpiresIn,
         path: "/",
       });
@@ -96,7 +96,7 @@ const login = async (req, res) => {
       res.cookie("refresh_token", tokenPair.refreshToken, {
         httpOnly: true,
         secure: isProduction,
-        sameSite: isProduction ? "strict" : "lax",
+        sameSite: isProduction ? "none" : "lax",
         maxAge: tokenPair.refreshTokenExpiresIn,
         path: "/api",
       });
@@ -371,7 +371,7 @@ const refreshTokenCtrl = async (req, res) => {
     res.cookie("access_token", result.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "strict" : "lax",
+      sameSite: isProduction ? "none" : "lax",
       maxAge: result.accessTokenExpiresIn,
       path: "/",
     });
@@ -380,7 +380,7 @@ const refreshTokenCtrl = async (req, res) => {
     res.cookie("refresh_token", result.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? "strict" : "lax",
+      sameSite: isProduction ? "none" : "lax",
       maxAge: result.refreshTokenExpiresIn,
       path: "/api",
     });
