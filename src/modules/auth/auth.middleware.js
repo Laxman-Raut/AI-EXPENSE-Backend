@@ -16,6 +16,8 @@ const authenticate = (req, res, next) => {
         token = authHeader.split(" ")[1];
       }
     }
+   
+  
 
     if (!token) {
       return res.status(401).json({
