@@ -26,6 +26,7 @@ const {
     sendAdminBroadcastService,
     getAdminCampaignsService,
 } = require("./service");
+const SupportQuery = require("../support/model");
 
 // ======================================
 // Dashboard
@@ -780,6 +781,46 @@ const clearAdminNotificationsCtrl = async (req, res) => {
   }
 };
 
+const getAdminSupportQueriesCtrl = async (req, res) => {
+  try {
+    const queries = await SupportQuery.find().sort({ createdAt: -1 });
+    return res.status(200).json({
+      success: true,
+      data: queries,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const updateSupportQueryStatusCtrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const query = await SupportQuery.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+    if (!query) {
+      return res.status(404).json({ success: false, message: "Query not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Query status updated successfully",
+      data: query,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -813,4 +854,6 @@ module.exports = {
       markAdminNotificationReadCtrl,
       deleteAdminNotificationCtrl,
       clearAdminNotificationsCtrl,
+      getAdminSupportQueriesCtrl,
+      updateSupportQueryStatusCtrl,
 };

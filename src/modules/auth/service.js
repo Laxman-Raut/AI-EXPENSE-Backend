@@ -1,4 +1,5 @@
 const User = require("./model");
+const SupportQuery = require("../support/model");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -551,16 +552,30 @@ const handleSupportRequest = async (userId, { subject, message }) => {
     throw new Error("User not found");
   }
 
-  await sendSupportEmail({
+  const queryRecord = await SupportQuery.create({
+    userId: user._id,
+    userName: user.fullName || "User",
     userEmail: user.email,
-    userName: user.fullName,
-    subject,
-    message,
+    subject: subject.trim(),
+    message: message.trim(),
+    status: "pending",
   });
+
+  try {
+    await sendSupportEmail({
+      userEmail: user.email,
+      userName: user.fullName,
+      subject,
+      message,
+    });
+  } catch (emailErr) {
+    console.warn("Support email dispatch failed:", emailErr.message);
+  }
 
   return {
     success: true,
-    message: "Support emails sent successfully",
+    message: "Support ticket submitted successfully",
+    data: queryRecord,
   };
 };
 

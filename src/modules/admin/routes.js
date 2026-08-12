@@ -35,6 +35,8 @@ const {
    markAdminNotificationReadCtrl,
    deleteAdminNotificationCtrl,
    clearAdminNotificationsCtrl,
+   getAdminSupportQueriesCtrl,
+   updateSupportQueryStatusCtrl,
 } = require("./controller");
 
 const {
@@ -360,6 +362,21 @@ router.delete(
   authenticate,
   requireAdmin,
   clearAdminNotificationsCtrl
+);
+
+// Support Queries
+router.get(
+  "/support-queries",
+  authenticate,
+  requireAdmin,
+  getAdminSupportQueriesCtrl
+);
+
+router.patch(
+  "/support-queries/:id/status",
+  authenticate,
+  requireAdmin,
+  updateSupportQueryStatusCtrl
 );
 
 module.exports = router;
