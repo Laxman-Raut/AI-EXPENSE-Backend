@@ -106,8 +106,8 @@ const login = async (req, res) => {
         message: "Login Successful",
         data: {
           user: result.user,
-          // Still include token in body for backward compat, but Dashboard should ignore it
           token: tokenPair.accessToken,
+          refreshToken: tokenPair.refreshToken,
         },
       });
     }
@@ -348,10 +348,11 @@ const searchUsers = async (req, res, next) => {
   }
 };
 
-// Refresh Token Controller — issues new token pair from refresh token cookie
+// Refresh Token Controller — issues new token pair from body or cookie
 const refreshTokenCtrl = async (req, res) => {
   try {
-    const rawRefreshToken = req.cookies?.refresh_token;
+    // Accept from body (token-based/cross-domain) or cookie (same-domain)
+    const rawRefreshToken = req.body?.refreshToken || req.cookies?.refresh_token;
 
     if (!rawRefreshToken) {
       return res.status(401).json({
@@ -367,7 +368,7 @@ const refreshTokenCtrl = async (req, res) => {
 
     const isProduction = process.env.NODE_ENV === "production";
 
-    // Set new access token cookie
+    // Set new access token cookie (for same-domain setups)
     res.cookie("access_token", result.accessToken, {
       httpOnly: true,
       secure: isProduction,
@@ -388,7 +389,11 @@ const refreshTokenCtrl = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Token refreshed successfully.",
-      data: { user: result.user },
+      data: {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      },
     });
   } catch (error) {
     // Clear cookies on refresh failure
