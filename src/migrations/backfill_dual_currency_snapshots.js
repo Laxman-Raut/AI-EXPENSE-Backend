@@ -150,7 +150,7 @@ async function runMigration() {
     }
     console.log(`Successfully updated ${splitUpdated} split requests.`);
 
-    console.log("\n✅ DUAL-CURRENCY SNAPSHOT MIGRATION COMPLETE.");
+    console.log("\n DUAL-CURRENCY SNAPSHOT MIGRATION COMPLETE.");
     await mongoose.disconnect();
     process.exit(0);
   } catch (err) {

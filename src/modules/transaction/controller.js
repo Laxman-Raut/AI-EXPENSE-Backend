@@ -31,7 +31,8 @@ const addTransaction = async (req, res) => {
 // Get All Transactions
 const getAllTransactions = async (req, res) => {
   try {
-    const transactions = await getTransactions(req.user.userId);
+    // req.user.currency pass karo — service ko extra DB query nahi karni padegi
+    const transactions = await getTransactions(req.user.userId, req.user.currency || 'INR');
 
     res.status(200).json({
       success: true,
@@ -49,7 +50,8 @@ const getTransaction = async (req, res) => {
   try {
     const transaction = await getTransactionById(
       req.params.id,
-      req.user.userId
+      req.user.userId,
+      req.user.currency || 'INR'
     );
 
     res.status(200).json({

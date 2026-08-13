@@ -143,9 +143,9 @@ const createTransaction = async (transactionData, userId) => {
 };
 
 // Get All Transactions
-const getTransactions = async (userId) => {
-  const user = await User.findById(userId).lean();
-  const userCurr = normalizeCurrency(user?.currency || "INR");
+const getTransactions = async (userId, userCurrency = null) => {
+  // User.findById extra query hatayi — currency param se lo ya default INR
+  const userCurr = normalizeCurrency(userCurrency || "INR");
 
   const transactions = await Transaction.find({ user: userId })
     .populate("bankAccount", "bankName nickname accountNumber isPrimary")
@@ -158,9 +158,9 @@ const getTransactions = async (userId) => {
 };
 
 
-const getTransactionById = async (id, userId) => {
-  const user = await User.findById(userId).lean();
-  const userCurr = normalizeCurrency(user?.currency || "INR");
+const getTransactionById = async (id, userId, userCurrency = null) => {
+  // User.findById extra query hatayi — currency param se lo ya default INR
+  const userCurr = normalizeCurrency(userCurrency || "INR");
   const transaction = await Transaction.findOne({
     _id: id,
     user: userId,
@@ -226,40 +226,50 @@ const deleteTransaction = async (id, userId) => {
 const syncTransactions = async (userId, transactions = []) => {
   const user = await User.findById(userId);
   const results = [];
-  for (const item of transactions) {
-    const localId = item.localId || item.id;
-    const itemCurr = normalizeCurrency(item.currency || user?.currency || "INR");
-    const snapshot = await createCurrencySnapshot(item.amount, itemCurr);
 
-    const transactionData = {
-      user: userId,
-      type: item.type,
-      category: item.category,
-      description: item.description,
-      amount: item.amount,
-      currency: itemCurr,
-      ...snapshot,
-      paymentMethod: item.paymentMethod || "UPI",
-      transactionDate: item.transactionDate ? new Date(item.transactionDate) : new Date(),
-      note: item.note || "",
-      bankAccount: item.bankAccount || null,
-    };
+  // Currency snapshots parallel create karo (chunks of 10)
+  // Sequential await ki jagah Promise.all use kiya — significantly faster
+  const CHUNK_SIZE = 10;
+  for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
+    const chunk = transactions.slice(i, i + CHUNK_SIZE);
+    const chunkResults = await Promise.all(
+      chunk.map(async (item) => {
+        const localId = item.localId || item.id;
+        const itemCurr = normalizeCurrency(item.currency || user?.currency || "INR");
+        const snapshot = await createCurrencySnapshot(item.amount, itemCurr);
 
-    let doc;
-    if (item.cloudId && item.cloudId !== "null" && item.cloudId !== "undefined") {
-      doc = await Transaction.findOneAndUpdate(
-        { _id: item.cloudId, user: userId },
-        transactionData,
-        { new: true, upsert: true }
-      );
-    } else {
-      doc = await Transaction.create(transactionData);
-    }
+        const transactionData = {
+          user: userId,
+          type: item.type,
+          category: item.category,
+          description: item.description,
+          amount: item.amount,
+          currency: itemCurr,
+          ...snapshot,
+          paymentMethod: item.paymentMethod || "UPI",
+          transactionDate: item.transactionDate ? new Date(item.transactionDate) : new Date(),
+          note: item.note || "",
+          bankAccount: item.bankAccount || null,
+        };
 
-    results.push({
-      localId: localId,
-      cloudId: doc._id.toString(),
-    });
+        let doc;
+        if (item.cloudId && item.cloudId !== "null" && item.cloudId !== "undefined") {
+          doc = await Transaction.findOneAndUpdate(
+            { _id: item.cloudId, user: userId },
+            transactionData,
+            { new: true, upsert: true }
+          );
+        } else {
+          doc = await Transaction.create(transactionData);
+        }
+
+        return {
+          localId: localId,
+          cloudId: doc._id.toString(),
+        };
+      })
+    );
+    results.push(...chunkResults);
   }
   return results;
 };
