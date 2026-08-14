@@ -492,7 +492,13 @@ const forgotPassword = async (email) => {
 
   await user.save();
 
-  await sendOtpEmail(email, otp);
+  try {
+    await sendOtpEmail(email, otp);
+  } catch (emailErr) {
+    console.error("[Email Service] Forgot password OTP email failed:", emailErr.message);
+    // OTP is saved in DB — do not throw, so the API still returns success
+    // The user can request a resend if email doesn't arrive
+  }
 
   return {
     message: "OTP sent successfully",
