@@ -38,6 +38,51 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Email Diagnostic Endpoint — hit this on your deployed server to test email
+app.get("/api/health/email", async (req, res) => {
+  const nodemailer = require("nodemailer");
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+
+  if (!emailUser || !emailPass) {
+    return res.status(500).json({
+      status: "error",
+      message: "EMAIL_USER or EMAIL_PASS environment variables are missing on this server.",
+      EMAIL_USER: emailUser ? "set" : "MISSING",
+      EMAIL_PASS: emailPass ? "set" : "MISSING",
+    });
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: emailUser, pass: emailPass },
+  });
+
+  try {
+    await transporter.verify();
+    const info = await transporter.sendMail({
+      from: emailUser,
+      to: emailUser,
+      subject: "Expenso - Email Diagnostic Test",
+      html: `<h2>✅ Email is working!</h2><p>Sent from your Render server at ${new Date().toISOString()}</p>`,
+    });
+    return res.status(200).json({
+      status: "ok",
+      message: "SMTP verified and test email sent successfully.",
+      messageId: info.messageId,
+      response: info.response,
+      EMAIL_USER: emailUser,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      message: err.message,
+      EMAIL_USER: emailUser,
+      EMAIL_PASS: emailPass ? "set (length: " + emailPass.length + ")" : "MISSING",
+    });
+  }
+});
+
 // Middleware
 // CORS Configuration — supports both Mobile (no credentials) and Dashboard (with credentials/cookies)
 const allowedOrigins = [
