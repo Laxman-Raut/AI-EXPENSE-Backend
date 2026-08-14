@@ -4,21 +4,28 @@ const invoiceTemplate = require("./templates/invoice");
 
 // Send Password Reset OTP Email
 const sendOtpEmail = async (email, otp) => {
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to: email,
-    subject: "Expenso - Password Reset OTP",
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 500px;">
-        <h2 style="color: #8A3FFC;">Password Reset Request</h2>
-        <p style="color: #555;">Your OTP for resetting your password is:</p>
-        <div style="background-color: #f3f0ff; padding: 15px; text-align: center; border-radius: 6px; margin: 15px 0;">
-          <h1 style="color: #8A3FFC; letter-spacing: 5px; margin: 0;">${otp}</h1>
+  console.log(`[Email] Sending OTP to: ${email} | From: ${process.env.EMAIL_USER || 'EMAIL_USER NOT SET'}`);
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Expenso - Password Reset OTP",
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px; max-width: 500px;">
+          <h2 style="color: #8A3FFC;">Password Reset Request</h2>
+          <p style="color: #555;">Your OTP for resetting your password is:</p>
+          <div style="background-color: #f3f0ff; padding: 15px; text-align: center; border-radius: 6px; margin: 15px 0;">
+            <h1 style="color: #8A3FFC; letter-spacing: 5px; margin: 0;">${otp}</h1>
+          </div>
+          <p style="color: #666; font-size: 13px;">This OTP is valid for <strong>5 minutes</strong>. If you didn't request this, you can safely ignore this email.</p>
         </div>
-        <p style="color: #666; font-size: 13px;">This OTP is valid for <strong>5 minutes</strong>. If you didn't request this, you can safely ignore this email.</p>
-      </div>
-    `,
-  });
+      `,
+    });
+    console.log(`[Email] OTP sent successfully to: ${email}`);
+  } catch (err) {
+    console.error(`[Email] FAILED to send OTP to ${email}: ${err.message}`);
+    throw err;
+  }
 };
 
 // Send Help & Support Email
