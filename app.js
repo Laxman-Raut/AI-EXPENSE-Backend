@@ -40,45 +40,32 @@ app.get("/api/health", (req, res) => {
 
 // Email Diagnostic Endpoint — hit this on your deployed server to test email
 app.get("/api/health/email", async (req, res) => {
-  const nodemailer = require("nodemailer");
+  const transporter = require("./src/modules/email/transporter");
   const emailUser = process.env.EMAIL_USER;
-  const emailPass = process.env.EMAIL_PASS;
-
-  if (!emailUser || !emailPass) {
-    return res.status(500).json({
-      status: "error",
-      message: "EMAIL_USER or EMAIL_PASS environment variables are missing on this server.",
-      EMAIL_USER: emailUser ? "set" : "MISSING",
-      EMAIL_PASS: emailPass ? "set" : "MISSING",
-    });
-  }
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: emailUser, pass: emailPass },
-  });
+  const apiKey = process.env.BREVO_API_KEY || process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
 
   try {
-    await transporter.verify();
     const info = await transporter.sendMail({
-      from: emailUser,
-      to: emailUser,
+      from: emailUser || "lraut248@gmail.com",
+      to: emailUser || "lraut248@gmail.com",
       subject: "Expenso - Email Diagnostic Test",
       html: `<h2>✅ Email is working!</h2><p>Sent from your Render server at ${new Date().toISOString()}</p>`,
     });
     return res.status(200).json({
       status: "ok",
-      message: "SMTP verified and test email sent successfully.",
+      message: "Test email dispatched successfully.",
+      provider: apiKey ? "HTTPS API (Port 443)" : "SMTP",
       messageId: info.messageId,
       response: info.response,
-      EMAIL_USER: emailUser,
+      EMAIL_USER: emailUser || "lraut248@gmail.com",
     });
   } catch (err) {
     return res.status(500).json({
       status: "error",
       message: err.message,
-      EMAIL_USER: emailUser,
-      EMAIL_PASS: emailPass ? "set (length: " + emailPass.length + ")" : "MISSING",
+      provider: apiKey ? "HTTPS API (Port 443)" : "SMTP",
+      EMAIL_USER: emailUser || "lraut248@gmail.com",
+      API_KEY: apiKey ? "configured" : "MISSING (using SMTP fallback)",
     });
   }
 });
