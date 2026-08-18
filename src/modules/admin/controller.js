@@ -783,10 +783,20 @@ const clearAdminNotificationsCtrl = async (req, res) => {
 
 const getAdminSupportQueriesCtrl = async (req, res) => {
   try {
-    const queries = await SupportQuery.find().sort({ createdAt: -1 });
+    const queries = await SupportQuery.find()
+      .populate("userId", "mobile countryCode")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formatted = queries.map((q) => ({
+      ...q,
+      countryCode: q.countryCode || q.userId?.countryCode || "+91",
+      phoneNumber: q.phoneNumber || q.userId?.mobile || "",
+    }));
+
     return res.status(200).json({
       success: true,
-      data: queries,
+      data: formatted,
     });
   } catch (error) {
     return res.status(500).json({

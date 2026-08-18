@@ -29,7 +29,9 @@ const sendOtpEmail = async (email, otp) => {
 };
 
 // Send Help & Support Email
-const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
+const sendSupportEmail = async ({ userEmail, userName, subject, message, countryCode = "+91", phoneNumber = "" }) => {
+  const fullPhone = phoneNumber ? `${countryCode} ${phoneNumber}` : "Not Provided";
+
   // 1. Send email to support team
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
@@ -39,6 +41,7 @@ const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h2 style="color: #8A3FFC; border-bottom: 2px solid #8A3FFC; padding-bottom: 10px;">New Help & Support Request</h2>
         <p><strong>From:</strong> ${userName} (&lt;${userEmail}&gt;)</p>
+        <p><strong>Contact Phone:</strong> <a href="tel:${fullPhone.replace(/\s+/g, '')}">${fullPhone}</a></p>
         <p><strong>Subject:</strong> ${subject}</p>
         <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #8A3FFC; margin: 15px 0;">
           <p style="white-space: pre-wrap; margin: 0;">${message}</p>

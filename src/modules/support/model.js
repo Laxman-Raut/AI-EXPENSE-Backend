@@ -28,6 +28,16 @@ const supportQuerySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    countryCode: {
+      type: String,
+      default: "+91",
+      trim: true,
+    },
+    phoneNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     status: {
       type: String,
       enum: ["pending", "in_progress", "resolved"],

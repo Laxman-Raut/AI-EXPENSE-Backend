@@ -234,11 +234,11 @@ const resetPassword = async (req, res) => {
 
 const support = async (req, res) => {
   try {
-    const { subject, message } = req.body;
+    const { subject, message, countryCode, phoneNumber } = req.body;
     if (!subject || !message) {
       throw new Error("Subject and message are required");
     }
-    const result = await handleSupportRequest(req.user.userId, { subject, message });
+    const result = await handleSupportRequest(req.user.userId, { subject, message, countryCode, phoneNumber });
 
     res.status(200).json({
       success: true,
