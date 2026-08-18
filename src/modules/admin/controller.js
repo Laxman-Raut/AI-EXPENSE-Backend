@@ -831,6 +831,54 @@ const updateSupportQueryStatusCtrl = async (req, res) => {
   }
 };
 
+const replySupportQueryCtrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { subject, message, status = "resolved" } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: "Reply message is required" });
+    }
+
+    const query = await SupportQuery.findById(id);
+    if (!query) {
+      return res.status(404).json({ success: false, message: "Support query not found" });
+    }
+
+    query.adminReply = message.trim();
+    query.repliedAt = new Date();
+    if (status) {
+      query.status = status;
+    }
+    await query.save();
+
+    // Dispatch email response to user via Brevo API
+    try {
+      const { sendSupportReplyEmail } = require("../email");
+      await sendSupportReplyEmail({
+        toEmail: query.userEmail,
+        userName: query.userName,
+        originalSubject: query.subject,
+        replySubject: subject,
+        replyMessage: message.trim(),
+      });
+    } catch (emailErr) {
+      console.warn("[Admin Support Reply] Email dispatch warning:", emailErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Reply sent to user and email dispatched successfully",
+      data: query,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -866,4 +914,5 @@ module.exports = {
       clearAdminNotificationsCtrl,
       getAdminSupportQueriesCtrl,
       updateSupportQueryStatusCtrl,
+      replySupportQueryCtrl,
 };

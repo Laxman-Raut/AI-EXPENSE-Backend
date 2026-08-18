@@ -37,6 +37,7 @@ const {
    clearAdminNotificationsCtrl,
    getAdminSupportQueriesCtrl,
    updateSupportQueryStatusCtrl,
+   replySupportQueryCtrl,
 } = require("./controller");
 
 const {
@@ -377,6 +378,13 @@ router.patch(
   authenticate,
   requireAdmin,
   updateSupportQueryStatusCtrl
+);
+
+router.post(
+  "/support-queries/:id/reply",
+  authenticate,
+  requireAdmin,
+  replySupportQueryCtrl
 );
 
 module.exports = router;

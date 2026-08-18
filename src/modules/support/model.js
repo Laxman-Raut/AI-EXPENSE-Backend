@@ -43,6 +43,14 @@ const supportQuerySchema = new mongoose.Schema(
       enum: ["pending", "in_progress", "resolved"],
       default: "pending",
     },
+    adminReply: {
+      type: String,
+      default: "",
+    },
+    repliedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
