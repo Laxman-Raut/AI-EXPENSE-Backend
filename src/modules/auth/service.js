@@ -32,7 +32,7 @@ const sendRegistrationOtp = async ({ fullName, email, role }) => {
 
   let existingUser = await User.findOne({ email: cleanEmail });
 
-  if (existingUser && existingUser.isVerified) {
+  if (existingUser) {
     const err = new Error("This email is already registered. Please log in instead.");
     err.code = "EMAIL_ALREADY_REGISTERED";
     throw err;
@@ -41,24 +41,16 @@ const sendRegistrationOtp = async ({ fullName, email, role }) => {
   const otp = generateOTP();
   const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
-  if (existingUser) {
-    existingUser.fullName = cleanName;
-    if (role) existingUser.role = requestedRole;
-    existingUser.verificationOtp = otp;
-    existingUser.verificationOtpExpiry = expiry;
-    await existingUser.save();
-  } else {
-    const dummyHash = await bcrypt.hash(crypto.randomBytes(16).toString("hex"), 10);
-    await User.create({
-      fullName: cleanName,
-      email: cleanEmail,
-      password: dummyHash,
-      role: requestedRole,
-      isVerified: false,
-      verificationOtp: otp,
-      verificationOtpExpiry: expiry,
-    });
-  }
+  const dummyHash = await bcrypt.hash(crypto.randomBytes(16).toString("hex"), 10);
+  await User.create({
+    fullName: cleanName,
+    email: cleanEmail,
+    password: dummyHash,
+    role: requestedRole,
+    isVerified: false,
+    verificationOtp: otp,
+    verificationOtpExpiry: expiry,
+  });
 
   sendVerificationOtpEmail(cleanEmail, cleanName, otp).catch((err) => {
     console.warn("[Email Service] Verification OTP email warning:", err.message);
