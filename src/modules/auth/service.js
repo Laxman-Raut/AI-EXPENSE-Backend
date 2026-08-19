@@ -33,7 +33,9 @@ const sendRegistrationOtp = async ({ fullName, email, role }) => {
   let existingUser = await User.findOne({ email: cleanEmail });
 
   if (existingUser && existingUser.isVerified) {
-    throw new Error("Email is already registered. Please log in.");
+    const err = new Error("This email is already registered. Please log in instead.");
+    err.code = "EMAIL_ALREADY_REGISTERED";
+    throw err;
   }
 
   const otp = generateOTP();
