@@ -48,6 +48,8 @@ const createSplitRequest = async (data, userId) => {
     data.currency = payerDoc?.currency || "INR";
   }
 
+  const splitCurrency = normalizeCurrency(data.currency);
+
   const type = data.splitType || "equal";
 
   if (type === "equal") {
@@ -83,6 +85,32 @@ const createSplitRequest = async (data, userId) => {
       };
     });
   }
+
+  // Populate dual currency fields on the SplitRequest document itself
+  const totalSnapshot = await createCurrencySnapshot(totalAmt, splitCurrency);
+  data.totalAmountINR = totalSnapshot.amountINR;
+  data.totalAmountUSD = totalSnapshot.amountUSD;
+  data.originalCurrency = totalSnapshot.originalCurrency;
+  data.exchangeRate = totalSnapshot.exchangeRate;
+  data.exchangeRateTimestamp = totalSnapshot.exchangeRateTimestamp;
+
+  // Populate dual currency fields on each participant's share
+  data.participants = data.participants.map((p) => {
+    const pAmt = Number(p.amount || 0);
+    if (splitCurrency === "USD") {
+      return {
+        ...p,
+        amountUSD: pAmt,
+        amountINR: Number((pAmt * totalSnapshot.exchangeRate).toFixed(2)),
+      };
+    } else {
+      return {
+        ...p,
+        amountINR: pAmt,
+        amountUSD: Number((pAmt / totalSnapshot.exchangeRate).toFixed(2)),
+      };
+    }
+  });
 
   const createdSplit = await splitRequestRepository.createSplitRequest(data);
 
