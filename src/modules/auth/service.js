@@ -25,8 +25,9 @@ const sendRegistrationOtp = async ({ fullName, email, role }) => {
   if (!cleanName || cleanName.length < 3) {
     throw new Error("Full name must be at least 3 characters.");
   }
-  if (!cleanEmail || !cleanEmail.includes("@")) {
-    throw new Error("Please enter a valid email address.");
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    throw new Error("This email is invalid. Please enter a correct email address.");
   }
 
   let existingUser = await User.findOne({ email: cleanEmail });
@@ -164,14 +165,7 @@ const verifyRegistrationOtp = async ({ email, otp }) => {
   }
 
   if (user.isVerified) {
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-    const userObj = user.toObject();
-    delete userObj.password;
-    return { token, user: userObj };
+    throw new Error("Account is already registered and verified. Please log in.");
   }
 
   if (!user.verificationOtp || user.verificationOtp !== cleanOtp) {
