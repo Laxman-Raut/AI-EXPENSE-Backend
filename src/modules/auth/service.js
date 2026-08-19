@@ -254,14 +254,14 @@ const loginUser = async ({ email, password }) => {
   const user = await User.findOne({ email: cleanEmail });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new Error("Email does not exist. Please check your email or sign up.");
   }
 
   // Compare password
   const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
-    throw new Error("Invalid password");
+    throw new Error("Incorrect password. Please try again.");
   }
 
   // Check if email is verified
