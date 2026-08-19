@@ -544,11 +544,14 @@ const resetPassword = async (email, otp, newPassword) => {
   };
 };
 
-const handleSupportRequest = async (userId, { subject, message }) => {
+const handleSupportRequest = async (userId, { subject, message, countryCode, phoneNumber }) => {
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
   }
+
+  const finalCountryCode = countryCode ? String(countryCode).trim() : (user.countryCode || "+91");
+  const finalPhoneNumber = phoneNumber ? String(phoneNumber).trim() : (user.mobile || "");
 
   const queryRecord = await SupportQuery.create({
     userId: user._id,
@@ -556,6 +559,8 @@ const handleSupportRequest = async (userId, { subject, message }) => {
     userEmail: user.email,
     subject: subject.trim(),
     message: message.trim(),
+    countryCode: finalCountryCode,
+    phoneNumber: finalPhoneNumber,
     status: "pending",
   });
 
@@ -565,6 +570,8 @@ const handleSupportRequest = async (userId, { subject, message }) => {
       userName: user.fullName,
       subject,
       message,
+      countryCode: finalCountryCode,
+      phoneNumber: finalPhoneNumber,
     });
   } catch (emailErr) {
     console.warn("Support email dispatch failed:", emailErr.message);

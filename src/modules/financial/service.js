@@ -8,7 +8,7 @@ const normalizeCurrency = (currency = "INR") => {
   return value || "INR";
 };
 
-const selectStoredAmount = (record = {}, targetCurrency = "INR") => {
+const selectStoredAmount = (record = {}, targetCurrency = "INR", ratesMap = null) => {
   const currency = normalizeCurrency(targetCurrency);
   const isUsd = currency === "USD";
 
@@ -24,7 +24,7 @@ const selectStoredAmount = (record = {}, targetCurrency = "INR") => {
     if (record.monthlyBudgetINR !== null && record.monthlyBudgetINR !== undefined) return Number(record.monthlyBudgetINR) || 0;
   }
 
-  const originalCurrency = normalizeCurrency(record.originalCurrency || record.currency || currency);
+  const originalCurrency = normalizeCurrency(record.originalCurrency || record.currency || (isUsd ? "INR" : "USD"));
   const originalAmount = Number(
     record.originalAmount !== null && record.originalAmount !== undefined
       ? record.originalAmount
@@ -46,7 +46,8 @@ const selectStoredAmount = (record = {}, targetCurrency = "INR") => {
     }
   }
 
-  return Number(originalAmount.toFixed(2));
+  // Fallback to live market rate conversion when exchangeRate is not stored on record
+  return currencyService.convertAmountWithRates(originalAmount, originalCurrency, currency, ratesMap);
 };
 
 const hydrateTransaction = (tx, targetCurrency = "INR") => {

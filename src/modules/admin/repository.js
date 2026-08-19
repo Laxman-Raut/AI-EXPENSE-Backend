@@ -227,14 +227,25 @@ const normalizePlanName = (planStr) => {
   if (!planStr) return { key: 'free', name: 'Free Tier' };
   const str = String(planStr).toLowerCase().trim();
 
-  if (str.includes('pro')) return { key: 'pro', name: 'Pro Plan' };
-  if (str.includes('business') || str.includes('enterprise')) return { key: 'business', name: 'Business Plan' };
-  if (str.includes('basic')) return { key: 'basic', name: 'Basic Plan' };
-  if (str.includes('free')) return { key: 'free', name: 'Free Tier' };
+  if (str === 'free' || str === 'free-tier') return { key: 'free', name: 'Free Tier' };
+  if (str === 'basic' || str === 'basic-plan') return { key: 'basic', name: 'Basic Plan' };
+  if (str === 'pro' || str === 'pro-plan' || str === 'pro_yearly') return { key: 'pro', name: 'Pro Plan' };
+  if (str === 'business' || str === 'business-plan') return { key: 'business-plan', name: 'Business Plan' };
+  if (str === 'enterprise' || str === 'enterprise-plan') return { key: 'enterprise-plan', name: 'Enterprise Plan' };
 
-  // Fallback: title case of slug
-  const title = str.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  return { key: str, name: title };
+  // Fallback: format any custom plan slug nicely (e.g. ultra-pros -> Ultra Pros Plan)
+  const key = str;
+  let title = str
+    .replace(/[-_]+/g, ' ')
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  if (!title.toLowerCase().endsWith('plan') && !title.toLowerCase().endsWith('tier')) {
+    title = `${title} Plan`;
+  }
+
+  return { key, name: title };
 };
 
 // Revenue Trend (Last 7 Days, grouped by plan)
@@ -244,6 +255,15 @@ const getRevenueTrend = async () => {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - 6);
   startDate.setHours(0, 0, 0, 0);
+
+  // Fetch all active/existing plans from DB to pre-populate plan entries
+  const allDbPlans = await Plan.find({}).lean();
+  const defaultPlans = { 'Free Tier': 0 };
+
+  allDbPlans.forEach(p => {
+    const norm = normalizePlanName(p.slug || p.name);
+    defaultPlans[norm.name] = 0;
+  });
 
   const rawTrend = await Payment.aggregate([
     {
@@ -274,12 +294,7 @@ const getRevenueTrend = async () => {
     const dayData = {
       date: dateStr,
       revenue: 0,
-      plans: {
-        'Free Tier': 0,
-        'Basic Plan': 0,
-        'Pro Plan': 0,
-        'Business Plan': 0,
-      }
+      plans: { ...defaultPlans }
     };
 
     rawTrend.forEach(item => {
@@ -358,10 +373,19 @@ const getSubscriptionDistribution = async () => {
 // ======================================
 
 const getRevenueByPlan = async () => {
-  const allDbPlans = await Plan.find({ status: 'active' }).lean();
+  const allDbPlans = await Plan.find({}).lean();
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   const rawRevenue = await Payment.aggregate([
-    { $match: { status: "success" } },
+    {
+      $match: {
+        status: "success",
+        paidAt: { $gte: startOfMonth, $lte: endOfMonth },
+      },
+    },
     {
       $group: {
         _id: "$plan",

@@ -29,7 +29,9 @@ const sendOtpEmail = async (email, otp) => {
 };
 
 // Send Help & Support Email
-const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
+const sendSupportEmail = async ({ userEmail, userName, subject, message, countryCode = "+91", phoneNumber = "" }) => {
+  const fullPhone = phoneNumber ? `${countryCode} ${phoneNumber}` : "Not Provided";
+
   // 1. Send email to support team
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
@@ -39,6 +41,7 @@ const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
         <h2 style="color: #8A3FFC; border-bottom: 2px solid #8A3FFC; padding-bottom: 10px;">New Help & Support Request</h2>
         <p><strong>From:</strong> ${userName} (&lt;${userEmail}&gt;)</p>
+        <p><strong>Contact Phone:</strong> <a href="tel:${fullPhone.replace(/\s+/g, '')}">${fullPhone}</a></p>
         <p><strong>Subject:</strong> ${subject}</p>
         <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #8A3FFC; margin: 15px 0;">
           <p style="white-space: pre-wrap; margin: 0;">${message}</p>
@@ -63,6 +66,41 @@ const sendSupportEmail = async ({ userEmail, userName, subject, message }) => {
           <p style="white-space: pre-wrap; margin: 0;">${message}</p>
         </div>
         <p>Best regards,<br/>Expenso Support Team</p>
+      </div>
+    `,
+  });
+};
+
+// Send Admin Support Reply Email to User
+const sendSupportReplyEmail = async ({ toEmail, userName, originalSubject, replySubject, replyMessage }) => {
+  const finalSubject = replySubject || `Re: ${originalSubject || "Support Ticket"}`;
+  
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: toEmail,
+    subject: finalSubject,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 580px; margin: 0 auto; background-color: #ffffff;">
+        <div style="border-bottom: 2px solid #8A3FFC; padding-bottom: 12px; margin-bottom: 16px;">
+          <h2 style="color: #8A3FFC; margin: 0; font-size: 20px;">Expenso Support Response</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Official reply to your help & support request</p>
+        </div>
+
+        <p style="color: #1e293b; font-size: 14px; font-weight: 600;">Hello ${userName || "Valued User"},</p>
+        
+        <div style="background-color: #f8fafc; border-left: 4px solid #8A3FFC; padding: 16px; border-radius: 6px; margin: 16px 0;">
+          <p style="white-space: pre-wrap; margin: 0; color: #334155; font-size: 14px; line-height: 1.6;">${replyMessage}</p>
+        </div>
+
+        <div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 6px; margin-top: 20px;">
+          <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: bold; text-transform: uppercase;">Your Original Query:</p>
+          <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;"><strong>Subject:</strong> ${originalSubject}</p>
+        </div>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-t: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 12px;">
+          <p style="margin: 0;">Thank you for using Expenso AI Expense Tracker.</p>
+          <p style="margin: 4px 0 0 0;">If you have further questions, reply to this email or contact support in app.</p>
+        </div>
       </div>
     `,
   });
@@ -374,6 +412,7 @@ const sendVerificationOtpEmail = async (email, fullName, otp) => {
 module.exports = {
   sendOtpEmail,
   sendSupportEmail,
+  sendSupportReplyEmail,
   sendWelcomeEmail,
   sendSubscriptionEmail,
   sendInvoiceEmail,

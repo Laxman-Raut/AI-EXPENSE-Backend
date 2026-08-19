@@ -3,6 +3,8 @@ const groupRepository = require("../groups/repository");
 const Transaction = require("../transaction/model");
 const { sendSplitExpenseEmail } = require("../email/emailService");
 const User = require("../auth/model");
+const { createCurrencySnapshot } = require("../currency/service");
+const { normalizeCurrency } = require("../financial/service");
 const getUserId = (userObj) => {
   if (!userObj) return "";
   if (typeof userObj === "object" && userObj._id) return userObj._id.toString();
@@ -46,6 +48,8 @@ const createSplitRequest = async (data, userId) => {
     data.currency = payerDoc?.currency || "INR";
   }
 
+  const splitCurrency = normalizeCurrency(data.currency);
+
   const type = data.splitType || "equal";
 
   if (type === "equal") {
@@ -82,6 +86,32 @@ const createSplitRequest = async (data, userId) => {
     });
   }
 
+  // Populate dual currency fields on the SplitRequest document itself
+  const totalSnapshot = await createCurrencySnapshot(totalAmt, splitCurrency);
+  data.totalAmountINR = totalSnapshot.amountINR;
+  data.totalAmountUSD = totalSnapshot.amountUSD;
+  data.originalCurrency = totalSnapshot.originalCurrency;
+  data.exchangeRate = totalSnapshot.exchangeRate;
+  data.exchangeRateTimestamp = totalSnapshot.exchangeRateTimestamp;
+
+  // Populate dual currency fields on each participant's share
+  data.participants = data.participants.map((p) => {
+    const pAmt = Number(p.amount || 0);
+    if (splitCurrency === "USD") {
+      return {
+        ...p,
+        amountUSD: pAmt,
+        amountINR: Number((pAmt * totalSnapshot.exchangeRate).toFixed(2)),
+      };
+    } else {
+      return {
+        ...p,
+        amountINR: pAmt,
+        amountUSD: Number((pAmt / totalSnapshot.exchangeRate).toFixed(2)),
+      };
+    }
+  });
+
   const createdSplit = await splitRequestRepository.createSplitRequest(data);
 
   // Send Email to all participants except payer in background (non-blocking)
@@ -113,18 +143,22 @@ const createSplitRequest = async (data, userId) => {
       console.error("[Split] Background email sending failed:", error.message);
     }
   })();
-  // Automatically record Expense transaction for the payer
+  // Automatically record Expense transaction for the payer with Dual Currency Snapshot
   try {
+    const splitCurrency = normalizeCurrency(createdSplit.currency || "INR");
+    const snapshot = await createCurrencySnapshot(totalAmt, splitCurrency);
+
     await Transaction.create({
       user: payerIdStr,
       type: "expense",
       category: "Split Expense",
       description: `Paid for "${data.title}" in group`,
       amount: totalAmt,
-      currency: createdSplit.currency || "INR",
+      currency: splitCurrency,
       paymentMethod: "UPI",
       transactionDate: new Date(),
       note: `Split Request ID: ${createdSplit._id}`,
+      ...snapshot,
     });
   } catch (err) {
     console.error("[Split] Error creating initial expense transaction:", err.message);
@@ -194,6 +228,9 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
         const participantDoc = await User.findById(pUserId).select("fullName email");
         const participantName = participantDoc?.fullName || "Group Member";
 
+        const splitCurrency = normalizeCurrency(oldSplit.currency || "INR");
+        const shareSnapshot = await createCurrencySnapshot(shareAmount, splitCurrency);
+
         // 1) Record Income transaction for Payer (Reimbursement)
         try {
           await Transaction.create({
@@ -202,9 +239,11 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
             category: "Split Reimbursement",
             description: `Received share from ${participantName} for "${oldSplit.title}"`,
             amount: shareAmount,
+            currency: splitCurrency,
             paymentMethod: "UPI",
             transactionDate: new Date(),
             note: `Reimbursement from ${participantName} for Split ID: ${splitId}`,
+            ...shareSnapshot,
           });
         } catch (err) {
           console.error("[Split] Error creating reimbursement income transaction:", err.message);
@@ -218,9 +257,11 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
             category: "Split Expense",
             description: `Paid share to ${payerName} for "${oldSplit.title}"`,
             amount: shareAmount,
+            currency: splitCurrency,
             paymentMethod: "UPI",
             transactionDate: new Date(),
             note: `Paid share for "${oldSplit.title}" to ${payerName}`,
+            ...shareSnapshot,
           });
         } catch (err) {
           console.error("[Split] Error creating payment expense transaction:", err.message);
