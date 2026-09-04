@@ -83,7 +83,7 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (mobile apps, Postman, server-to-server)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
         return callback(null, true);
       }
       // For non-listed origins, still allow but without credentials

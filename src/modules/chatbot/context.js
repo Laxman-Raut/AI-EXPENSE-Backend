@@ -2,6 +2,11 @@ const Transaction = require("../transaction/model");
 const User = require("../auth/model");
 const Bank = require("../bank/model");
 const RecurringTransaction = require("../recurringTransaction/model");
+const {
+  normalizeCurrency,
+  selectStoredAmount,
+  buildBudgetSnapshot,
+} = require("../financial/service");
 
 const buildFinanceContext = async (userId) => {
   const user = await User.findById(userId);
@@ -27,20 +32,27 @@ const buildFinanceContext = async (userId) => {
   const categorySpendMap = {};
   const bankSpendMap = {};
 
+  // Use currency-aware amount selection to match dashboard calculations
+  const userCurrency = normalizeCurrency(user?.currency || "INR");
+
   monthlyTransactions.forEach((item) => {
+    const amount = selectStoredAmount(item, userCurrency);
     if (item.type === "income") {
-      income += item.amount;
+      income += amount;
     } else {
-      expense += item.amount;
+      expense += amount;
       const cat = item.category || "Uncategorized";
-      categorySpendMap[cat] = (categorySpendMap[cat] || 0) + item.amount;
+      categorySpendMap[cat] = (categorySpendMap[cat] || 0) + amount;
 
       if (item.bankAccount) {
         const bId = typeof item.bankAccount === "object" ? item.bankAccount._id.toString() : item.bankAccount.toString();
-        bankSpendMap[bId] = (bankSpendMap[bId] || 0) + item.amount;
+        bankSpendMap[bId] = (bankSpendMap[bId] || 0) + amount;
       }
     }
   });
+
+  income = Number(income.toFixed(2));
+  expense = Number(expense.toFixed(2));
 
   // 3. Build Category Budgets vs Category Spend Comparison
   const categoryBudgetsRaw = user?.categoryBudgets ? (user.categoryBudgets instanceof Map ? Object.fromEntries(user.categoryBudgets) : user.categoryBudgets) : {};
@@ -88,12 +100,14 @@ const buildFinanceContext = async (userId) => {
     .sort({ transactionDate: -1 })
     .limit(20);
 
-  const monthlyBudget = user ? user.monthlyBudget : 0;
+  // 7. Build currency-aware budget snapshot (matches dashboard logic exactly)
+  const budgetSnapshot = await buildBudgetSnapshot(user, userCurrency, expense);
+  const monthlyBudget = budgetSnapshot.budgetLimit;
 
   return {
     user: {
       fullName: user?.fullName || "User",
-      currency: user?.currency || "INR",
+      currency: userCurrency,
       monthlyBudget,
       subscription: user?.subscription || { plan: "free", status: "inactive" },
       aiUsage: user?.aiUsage || {},
@@ -109,7 +123,7 @@ const buildFinanceContext = async (userId) => {
     })),
     income,
     expense,
-    remainingBudget: monthlyBudget - expense,
+    remainingBudget: budgetSnapshot.budgetRemaining,
     categoryBudgets,
     topCategories,
     recurringTransactions: recurringTransactions.map((rt) => ({
@@ -135,7 +149,7 @@ const buildFinanceContext = async (userId) => {
       }
       return {
         type: t.type,
-        amount: t.amount,
+        amount: selectStoredAmount(t, userCurrency),
         category: t.category,
         description: t.description,
         date: t.transactionDate ? t.transactionDate.toISOString().split("T")[0] : "N/A",
