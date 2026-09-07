@@ -4,7 +4,7 @@ const VOICE_PROMPT = require("./prompt");
 const parseVoiceTransaction = async (text) => {
   try {
     const client = await getGeminiClient();
-    const modelName = await getGeminiModel("gemini-3.5-flash");
+    const modelName = await getGeminiModel("gemini-3.6-flash");
     const response = await client.models.generateContent({
       model: modelName,
       contents: [
