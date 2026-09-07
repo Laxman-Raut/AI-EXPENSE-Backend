@@ -7,8 +7,8 @@ const {
 
 const monthlyAnalytics = async (req, res) => {
   try {
-    const { range } = req.query;
-    const analytics = await getMonthlyAnalytics(req.user.userId, range);
+    const { range, month, year, startDate, endDate } = req.query;
+    const analytics = await getMonthlyAnalytics(req.user.userId, { range, month, year, startDate, endDate });
 
     res.status(200).json({
       success: true,
@@ -24,8 +24,8 @@ const monthlyAnalytics = async (req, res) => {
 
 const categoryAnalytics = async (req, res) => {
   try {
-    const { range } = req.query;
-    const analytics = await getCategoryAnalytics(req.user.userId, range);
+    const { range, month, year, startDate, endDate } = req.query;
+    const analytics = await getCategoryAnalytics(req.user.userId, { range, month, year, startDate, endDate });
 
     res.status(200).json({
       success: true,
@@ -41,8 +41,8 @@ const categoryAnalytics = async (req, res) => {
 
 const budgetUtilization = async (req, res) => {
   try {
-    const { range } = req.query;
-    const budget = await getBudgetUtilization(req.user.userId, range);
+    const { range, month, year, startDate, endDate } = req.query;
+    const budget = await getBudgetUtilization(req.user.userId, { range, month, year, startDate, endDate });
 
     res.status(200).json({
       success: true,

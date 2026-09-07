@@ -73,7 +73,8 @@ const removeFriend = (user1, user2) => {
 
 const searchUsers = async (query, currentUserId) => {
   if (!query || !query.trim()) return [];
-  const searchRegex = new RegExp(query.trim(), "i");
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const searchRegex = new RegExp(escaped, "i");
   const users = await User.find({
     _id: { $ne: currentUserId },
     $or: [

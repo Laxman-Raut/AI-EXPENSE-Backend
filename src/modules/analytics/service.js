@@ -17,22 +17,47 @@ const getStoredAmountForUser = (t, targetCurrency, rate = 95.24) => {
   return t.currency === 'INR' ? t.amount : Number((t.amount * rate).toFixed(2));
 };
 
-// Monthly Analytics / Trend Report
-const getMonthlyAnalytics = async (userId, range = 'monthly') => {
-  const user = await User.findById(userId);
-  const targetCurrency = user?.currency || 'INR';
-
+const resolveDateRange = (options = {}) => {
+  const opts = typeof options === "string" ? { range: options } : (options || {});
+  const { range = "monthly", month, year, startDate, endDate } = opts;
   const now = new Date();
-  const currentYear = now.getFullYear();
+  const currentYear = year ? parseInt(year, 10) : now.getFullYear();
 
-  let start, end;
-  if (range === 'yearly') {
-    start = new Date(currentYear, 0, 1);
-    end = new Date(currentYear, 11, 31, 23, 59, 59, 999);
-  } else {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return { start, end, type: "custom" };
+    }
   }
+
+  if (month !== undefined && month !== null && month !== "") {
+    const m = parseInt(month, 10);
+    const monthIndex = m >= 1 && m <= 12 ? m - 1 : (m >= 0 && m <= 11 ? m : now.getMonth());
+    const start = new Date(currentYear, monthIndex, 1);
+    const end = new Date(currentYear, monthIndex + 1, 0, 23, 59, 59, 999);
+    return { start, end, type: "monthly", month: monthIndex + 1, year: currentYear };
+  }
+
+  if (range === "yearly") {
+    const start = new Date(currentYear, 0, 1);
+    const end = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    return { start, end, type: "yearly", year: currentYear };
+  }
+
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { start, end, type: "monthly", month: now.getMonth() + 1, year: now.getFullYear() };
+};
+
+// Monthly Analytics / Trend Report
+const getMonthlyAnalytics = async (userId, options = "monthly") => {
+  const user = await User.findById(userId);
+  const targetCurrency = user?.currency || "INR";
+
+  const { start, end, type } = resolveDateRange(options);
 
   const transactions = await Transaction.find({
     user: userId,
@@ -46,23 +71,32 @@ const getMonthlyAnalytics = async (userId, range = 'monthly') => {
 
   transactions.forEach((t) => {
     const d = new Date(t.transactionDate || t.createdAt);
-    const key = range === 'yearly' ? d.getMonth() + 1 : d.getDate();
+    let key;
+    if (type === "yearly") {
+      key = d.getMonth() + 1;
+    } else if (type === "custom") {
+      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    } else {
+      key = d.getDate();
+    }
     const converted = getStoredAmountForUser(t, targetCurrency);
 
     if (!map.has(key)) {
       map.set(key, { income: 0, expense: 0 });
     }
     const entry = map.get(key);
-    if (t.type === 'income') entry.income += converted;
-    if (t.type === 'expense') entry.expense += converted;
+    if (t.type === "income") entry.income += converted;
+    if (t.type === "expense") entry.expense += converted;
   });
 
   const result = [];
-  const sortedKeys = Array.from(map.keys()).sort((a, b) => a - b);
+  const sortedKeys = Array.from(map.keys()).sort((a, b) => (typeof a === "number" ? a - b : String(a).localeCompare(String(b))));
   sortedKeys.forEach((k) => {
     const val = map.get(k);
-    if (range === 'yearly') {
+    if (type === "yearly") {
       result.push({ _id: { month: k }, income: Number(val.income.toFixed(2)), expense: Number(val.expense.toFixed(2)) });
+    } else if (type === "custom") {
+      result.push({ _id: { date: k }, income: Number(val.income.toFixed(2)), expense: Number(val.expense.toFixed(2)) });
     } else {
       result.push({ _id: { day: k }, income: Number(val.income.toFixed(2)), expense: Number(val.expense.toFixed(2)) });
     }
@@ -72,24 +106,15 @@ const getMonthlyAnalytics = async (userId, range = 'monthly') => {
 };
 
 // Category Analytics
-const getCategoryAnalytics = async (userId, range = 'monthly') => {
+const getCategoryAnalytics = async (userId, options = "monthly") => {
   const user = await User.findById(userId);
-  const targetCurrency = user?.currency || 'INR';
+  const targetCurrency = user?.currency || "INR";
 
-  const now = new Date();
-  let start, end;
-
-  if (range === 'yearly') {
-    start = new Date(now.getFullYear(), 0, 1);
-    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-  } else {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  }
+  const { start, end } = resolveDateRange(options);
 
   const transactions = await Transaction.find({
     user: userId,
-    type: 'expense',
+    type: "expense",
     $or: [
       { transactionDate: { $gte: start, $lte: end } },
       { transactionDate: { $exists: false }, createdAt: { $gte: start, $lte: end } },
@@ -98,7 +123,7 @@ const getCategoryAnalytics = async (userId, range = 'monthly') => {
 
   const catMap = new Map();
   transactions.forEach((t) => {
-    const cat = t.category || 'Others';
+    const cat = t.category || "Others";
     const converted = getStoredAmountForUser(t, targetCurrency);
     catMap.set(cat, (catMap.get(cat) || 0) + converted);
   });
@@ -110,19 +135,19 @@ const getCategoryAnalytics = async (userId, range = 'monthly') => {
   const totalExpense = categories.reduce((sum, c) => sum + c.amount, 0);
 
   const categoryMeta = {
-    food: { color: '#EC4899', icon: 'fast-food' },
-    shopping: { color: '#F59E0B', icon: 'bag' },
-    bills: { color: '#EF4444', icon: 'receipt' },
-    entertainment: { color: '#8B5CF6', icon: 'game-controller' },
-    transport: { color: '#06B6D4', icon: 'car' },
-    health: { color: '#10B981', icon: 'heart' },
-    education: { color: '#3B82F6', icon: 'school' },
-    travel: { color: '#14B8A6', icon: 'airplane' },
-    others: { color: '#64748B', icon: 'ellipse' },
+    food: { color: "#EC4899", icon: "fast-food" },
+    shopping: { color: "#F59E0B", icon: "bag" },
+    bills: { color: "#EF4444", icon: "receipt" },
+    entertainment: { color: "#8B5CF6", icon: "game-controller" },
+    transport: { color: "#06B6D4", icon: "car" },
+    health: { color: "#10B981", icon: "heart" },
+    education: { color: "#3B82F6", icon: "school" },
+    travel: { color: "#14B8A6", icon: "airplane" },
+    others: { color: "#64748B", icon: "ellipse" },
   };
 
   return categories.map((c) => {
-    const name = c._id || 'Others';
+    const name = c._id || "Others";
     const key = name.toLowerCase();
     const meta = categoryMeta[key] || categoryMeta.others;
     const percentage = totalExpense > 0 ? Math.round((c.amount / totalExpense) * 100) : 0;
@@ -131,30 +156,26 @@ const getCategoryAnalytics = async (userId, range = 'monthly') => {
 };
 
 // Budget Utilization
-const getBudgetUtilization = async (userId, range = 'monthly') => {
+const getBudgetUtilization = async (userId, options = "monthly") => {
   const user = await User.findById(userId);
-  const targetCurrency = user?.currency || 'INR';
+  const targetCurrency = user?.currency || "INR";
   const rates = await currencyService.getRatesMap();
 
   const rawMonthlyBudget = (user?.monthlyBudget && user.monthlyBudget > 0) ? user.monthlyBudget : 50000;
-  const monthlyBudget = currencyService.convertAmountWithRates(rawMonthlyBudget, 'INR', targetCurrency, rates);
+  const monthlyBudget = currencyService.convertAmountWithRates(rawMonthlyBudget, "INR", targetCurrency, rates);
 
-  const now = new Date();
-  let start, end, budgetLimit;
-
-  if (range === 'yearly') {
-    start = new Date(now.getFullYear(), 0, 1);
-    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  const { start, end, type } = resolveDateRange(options);
+  let budgetLimit = monthlyBudget;
+  if (type === "yearly") {
     budgetLimit = monthlyBudget * 12;
-  } else {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    budgetLimit = monthlyBudget;
+  } else if (type === "custom") {
+    const diffDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    budgetLimit = Number(((monthlyBudget / 30) * diffDays).toFixed(2));
   }
 
   const transactions = await Transaction.find({
     user: userId,
-    type: 'expense',
+    type: "expense",
     $or: [
       { transactionDate: { $gte: start, $lte: end } },
       { transactionDate: { $exists: false }, createdAt: { $gte: start, $lte: end } },

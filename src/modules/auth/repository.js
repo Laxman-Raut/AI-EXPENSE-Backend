@@ -1,24 +1,25 @@
 const User = require("./model");
 
 const searchUsers = async (query, currentUserId) => {
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return User.find({
     _id: { $ne: currentUserId },
     $or: [
       {
         fullName: {
-          $regex: query,
+          $regex: escaped,
           $options: "i",
         },
       },
       {
         username: {
-          $regex: query,
+          $regex: escaped,
           $options: "i",
         },
       },
       {
         email: {
-          $regex: query,
+          $regex: escaped,
           $options: "i",
         },
       },

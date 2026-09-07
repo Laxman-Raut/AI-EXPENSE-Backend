@@ -466,9 +466,13 @@ const getUsers = async ({
     filter["subscription.plan"] = plan;
   }
 
-  // Subscription Status
+  // Account & Subscription Status
   if (status) {
-    filter["subscription.status"] = status;
+    if (status.toLowerCase() === "suspended") {
+      filter.accountStatus = "suspended";
+    } else if (status !== "All") {
+      filter["subscription.status"] = status.toLowerCase();
+    }
   }
 
   const users = await User.find(filter)

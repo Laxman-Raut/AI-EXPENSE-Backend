@@ -339,6 +339,9 @@ const resendVerificationOtpController = async (req, res) => {
 const searchUsers = async (req, res, next) => {
   try {
     const searchTerm = req.query.q || req.query.query || "";
+    if (!searchTerm.trim()) {
+      return res.status(200).json({ success: true, data: [] });
+    }
     const currentUserId = req.user?.id || req.user?.userId || req.user?._id;
     const users = await authService.searchUsers(searchTerm, currentUserId);
 
