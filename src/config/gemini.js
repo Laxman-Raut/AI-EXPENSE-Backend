@@ -23,9 +23,20 @@ const getGeminiClient = async () => {
   return new GoogleGenAI({ apiKey });
 };
 
-const getGeminiModel = async (fallbackModel = "gemini-2.5-flash") => {
+const getGeminiModel = async (fallbackModel = "gemini-3.6-flash") => {
   const settings = await getSystemSettingsDoc();
-  return (settings && settings.geminiModel) ? settings.geminiModel : fallbackModel;
+  if (settings && settings.geminiModel) {
+    if (
+      settings.geminiModel === "gemini-2.5-flash" ||
+      settings.geminiModel === "gemini-2.0-flash-lite"
+    ) {
+      settings.geminiModel = "gemini-3.6-flash";
+      settings.save().catch((e) => console.error("[Gemini Config] Auto-migrate error:", e.message));
+      return "gemini-3.6-flash";
+    }
+    return settings.geminiModel;
+  }
+  return fallbackModel;
 };
 
 // Fallback static instance for backwards compatibility

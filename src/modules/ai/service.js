@@ -28,10 +28,10 @@ const scanReceipt = async (base64Data, mimeType = "image/jpeg", textData = null)
       });
     }
 
-    console.log(`[Gemini] Sending request to gemini-flash-latest with ${parts.length} parts`);
+    console.log(`[Gemini] Sending request to Gemini with ${parts.length} parts`);
 
     const client = await getGeminiClient();
-    const modelName = await getGeminiModel("gemini-2.5-flash");
+    const modelName = await getGeminiModel("gemini-3.6-flash");
     const response = await client.models.generateContent({
       model: modelName,
       contents: [

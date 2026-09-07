@@ -139,9 +139,9 @@ Current User Message:
 ${message}
 `;
 
-  // Ask Gemini using working model gemini-2.5-flash
+  // Ask Gemini using working model gemini-3.6-flash
   const client = await getGeminiClient();
-  const modelName = await getGeminiModel("gemini-2.5-flash");
+  const modelName = await getGeminiModel("gemini-3.6-flash");
   const response = await client.models.generateContent({
     model: modelName,
     contents: prompt,
