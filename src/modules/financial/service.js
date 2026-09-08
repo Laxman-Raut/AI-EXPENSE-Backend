@@ -149,13 +149,17 @@ const aggregateSavingsGoalProgress = (jars = [], goalTargetAmount = 0, targetCur
 const buildBudgetSnapshot = async (user, targetCurrency = "INR", spendAmount = 0) => {
   const normalized = normalizeCurrency(targetCurrency);
   const ratesMap = await currencyService.getRatesMap();
+  const baseBudgetINR = (user?.monthlyBudgetINR && user.monthlyBudgetINR > 0)
+    ? Number(user.monthlyBudgetINR)
+    : Number(user?.monthlyBudget || 0);
+
   const monthlyBudget = normalized === "USD"
     ? (user?.monthlyBudgetUSD && user.monthlyBudgetUSD > 0
       ? Number(user.monthlyBudgetUSD)
-      : currencyService.convertAmountWithRates(user?.monthlyBudget || 0, "INR", "USD", ratesMap))
-    : (user?.monthlyBudgetINR && user.monthlyBudgetINR > 0
-      ? Number(user.monthlyBudgetINR)
-      : Number(user?.monthlyBudget || 0));
+      : currencyService.convertAmountWithRates(baseBudgetINR, "INR", "USD", ratesMap))
+    : (normalized === "INR"
+      ? baseBudgetINR
+      : currencyService.convertAmountWithRates(baseBudgetINR, "INR", normalized, ratesMap));
 
   const budgetLimit = Number((monthlyBudget || 0).toFixed(2));
   const budgetRemaining = Math.max(Number((budgetLimit - spendAmount).toFixed(2)), 0);

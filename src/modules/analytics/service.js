@@ -161,8 +161,12 @@ const getBudgetUtilization = async (userId, options = "monthly") => {
   const targetCurrency = user?.currency || "INR";
   const rates = await currencyService.getRatesMap();
 
-  const rawMonthlyBudget = (user?.monthlyBudget && user.monthlyBudget > 0) ? user.monthlyBudget : 50000;
-  const monthlyBudget = currencyService.convertAmountWithRates(rawMonthlyBudget, "INR", targetCurrency, rates);
+  const rawMonthlyBudget = (user?.monthlyBudgetINR && user.monthlyBudgetINR > 0)
+    ? user.monthlyBudgetINR
+    : ((user?.monthlyBudget && user.monthlyBudget > 0) ? user.monthlyBudget : 0);
+  const monthlyBudget = rawMonthlyBudget > 0
+    ? currencyService.convertAmountWithRates(rawMonthlyBudget, "INR", targetCurrency, rates)
+    : 0;
 
   const { start, end, type } = resolveDateRange(options);
   let budgetLimit = monthlyBudget;

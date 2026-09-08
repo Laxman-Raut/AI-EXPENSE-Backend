@@ -38,9 +38,13 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
     const prevExpense = totalExpense - amount;
 
     // 1. Overall Monthly Budget Check
-    if (user.monthlyBudget > 0) {
-      const prevPercent = (prevExpense / user.monthlyBudget) * 100;
-      const newPercent = (totalExpense / user.monthlyBudget) * 100;
+    const budgetINR = (user.monthlyBudgetINR && user.monthlyBudgetINR > 0)
+      ? user.monthlyBudgetINR
+      : (user.monthlyBudget || 0);
+
+    if (budgetINR > 0) {
+      const prevPercent = (prevExpense / budgetINR) * 100;
+      const newPercent = (totalExpense / budgetINR) * 100;
 
       // Check if we crossed any 10% threshold (10, 20, 30, ..., 100)
       for (let threshold = 10; threshold <= 100; threshold += 10) {
@@ -50,7 +54,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             title: "Budget Burn Warning",
             body: `You have spent ${threshold}% of your monthly budget.`,
             type: "budget",
-            data: { threshold, totalExpense, monthlyBudget: user.monthlyBudget }
+            data: { threshold, totalExpense, monthlyBudget: budgetINR }
           });
         }
       }

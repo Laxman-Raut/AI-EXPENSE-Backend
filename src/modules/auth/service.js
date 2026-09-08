@@ -425,12 +425,17 @@ const updateProfile = async (userId, updateData) => {
     const budgetVal = Number(updateData.monthlyBudget);
     const inputCurr = updateData.currency || existingUser?.currency || "INR";
 
-    allowedUpdates.monthlyBudget = budgetVal;
     if (budgetVal > 0) {
       const currencyService = require("../currency/service");
       const snap = await currencyService.createCurrencySnapshot(budgetVal, inputCurr);
+      allowedUpdates.monthlyBudget = snap.amountINR;
       allowedUpdates.monthlyBudgetINR = snap.amountINR;
       allowedUpdates.monthlyBudgetUSD = snap.amountUSD;
+      allowedUpdates.monthlyBudgetCurrency = inputCurr;
+    } else {
+      allowedUpdates.monthlyBudget = 0;
+      allowedUpdates.monthlyBudgetINR = 0;
+      allowedUpdates.monthlyBudgetUSD = 0;
       allowedUpdates.monthlyBudgetCurrency = inputCurr;
     }
   }
