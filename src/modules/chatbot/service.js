@@ -4,28 +4,32 @@ const ChatMessage = require("./model");
 const CHATBOT_PROMPT = require("./prompt");
 
 const sendMessage = async (userId, message) => {
-  // 1. Get recent chat history (before saving new message to avoid duplicating it)
-  const history = await ChatMessage.find({
-    user: userId,
-  })
-    .sort({ createdAt: -1 })
-    .limit(20);
+  // 1. Concurrently fetch recent chat history and financial context in parallel
+  const [history, finance] = await Promise.all([
+    ChatMessage.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .limit(8)
+      .lean(),
+    buildFinanceContext(userId),
+    ChatMessage.create({
+      user: userId,
+      role: "user",
+      message,
+    }),
+  ]);
 
-  // 2. Save user's message
-  await ChatMessage.create({
-    user: userId,
-    role: "user",
-    message,
-  });
-
-  // Increment user's chatbot usage count in DB
+  // Increment user's chatbot usage count asynchronously without blocking
   const User = require("../auth/model");
-  await User.findByIdAndUpdate(userId, {
-    $inc: { "aiUsage.chatbot.used": 1 }
-  }).catch(err => console.error("Failed to increment chatbot usage:", err));
+  User.findByIdAndUpdate(userId, {
+    $inc: { "aiUsage.chatbot.used": 1 },
+  }).catch((err) => console.error("Failed to increment chatbot usage:", err.message));
 
-  // 3. Build rich financial context
-  const finance = await buildFinanceContext(userId);
+  // Format Today's Activity
+  const todayTransactionsFormatted = finance.today.transactions.length > 0
+    ? finance.today.transactions
+        .map((t) => `- [${t.type.toUpperCase()}] ₹${t.amount} | ${t.category} | ${t.description} (${t.paymentMethod})`)
+        .join("\n")
+    : "No transactions recorded yet today.";
 
   // Format Bank Accounts
   const bankAccountsFormatted = finance.bankAccounts && finance.bankAccounts.length > 0
@@ -83,9 +87,12 @@ Currency: ${finance.user.currency}
 Subscription Plan: ${finance.user.subscription?.plan || "free"} (${finance.user.subscription?.status || "inactive"})
 
 ====================================
-LINKED BANK ACCOUNTS & MONTHLY SPEND
+TODAY'S ACTIVITY (${finance.today.date})
 ====================================
-${bankAccountsFormatted}
+Today's Total Expense: ₹${finance.today.expense}
+Today's Total Income: ₹${finance.today.income}
+Today's Transactions:
+${todayTransactionsFormatted}
 
 ====================================
 MONTHLY FINANCIAL SUMMARY
@@ -94,6 +101,11 @@ Monthly Overall Budget: ₹${finance.user.monthlyBudget}
 Total Monthly Income: ₹${finance.income}
 Total Monthly Expense: ₹${finance.expense}
 Remaining Overall Budget: ₹${finance.remainingBudget}
+
+====================================
+LINKED BANK ACCOUNTS & MONTHLY SPEND
+====================================
+${bankAccountsFormatted}
 
 ====================================
 CATEGORY-WISE BUDGET STATUS
@@ -139,9 +151,9 @@ Current User Message:
 ${message}
 `;
 
-  // Ask Gemini using working model gemini-3.6-flash
+  // Use ultra-fast gemini-3.1-flash-lite for instant responses
   const client = await getGeminiClient();
-  const modelName = await getGeminiModel("gemini-3.6-flash");
+  const modelName = await getGeminiModel("gemini-3.1-flash-lite");
   const response = await client.models.generateContent({
     model: modelName,
     contents: prompt,

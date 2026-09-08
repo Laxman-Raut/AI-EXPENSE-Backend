@@ -9,26 +9,40 @@ const {
 } = require("../financial/service");
 
 const buildFinanceContext = async (userId) => {
-  const user = await User.findById(userId);
-
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  // 1. Fetch linked bank accounts
-  const bankAccounts = await Bank.find({ user: userId }).sort({ isPrimary: -1, createdAt: -1 });
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  // 2. Fetch current month transactions (populating bankAccount)
-  const monthlyTransactions = await Transaction.find({
-    user: userId,
-    $or: [
-      { transactionDate: { $gte: startOfMonth, $lte: endOfMonth } },
-      { transactionDate: { $exists: false }, createdAt: { $gte: startOfMonth, $lte: endOfMonth } },
-    ],
-  }).populate("bankAccount");
+  // Fetch all DB queries concurrently to eliminate sequential network roundtrips
+  const [user, bankAccounts, monthlyTransactions, recurringTransactions, recentTransactions] = await Promise.all([
+    User.findById(userId).lean(),
+    Bank.find({ user: userId }).sort({ isPrimary: -1, createdAt: -1 }).lean(),
+    Transaction.find({
+      user: userId,
+      $or: [
+        { transactionDate: { $gte: startOfMonth, $lte: endOfMonth } },
+        { transactionDate: { $exists: false }, createdAt: { $gte: startOfMonth, $lte: endOfMonth } },
+      ],
+    }).populate("bankAccount").lean(),
+    RecurringTransaction.find({
+      user: userId,
+      status: "active",
+    }).sort({ nextExecutionDate: 1 }).lean(),
+    Transaction.find({ user: userId })
+      .populate("bankAccount")
+      .sort({ transactionDate: -1, createdAt: -1 })
+      .limit(15)
+      .lean(),
+  ]);
 
   let income = 0;
   let expense = 0;
+  let todayIncome = 0;
+  let todayExpense = 0;
+  const todayTransactions = [];
   const categorySpendMap = {};
   const bankSpendMap = {};
 
@@ -37,10 +51,15 @@ const buildFinanceContext = async (userId) => {
 
   monthlyTransactions.forEach((item) => {
     const amount = selectStoredAmount(item, userCurrency);
+    const itemDate = item.transactionDate ? new Date(item.transactionDate) : new Date(item.createdAt);
+    const isToday = itemDate >= startOfToday && itemDate <= endOfToday;
+
     if (item.type === "income") {
       income += amount;
+      if (isToday) todayIncome += amount;
     } else {
       expense += amount;
+      if (isToday) todayExpense += amount;
       const cat = item.category || "Uncategorized";
       categorySpendMap[cat] = (categorySpendMap[cat] || 0) + amount;
 
@@ -49,10 +68,22 @@ const buildFinanceContext = async (userId) => {
         bankSpendMap[bId] = (bankSpendMap[bId] || 0) + amount;
       }
     }
+
+    if (isToday) {
+      todayTransactions.push({
+        type: item.type,
+        amount,
+        category: item.category || "General",
+        description: item.description || "Expense",
+        paymentMethod: item.paymentMethod || "UPI",
+      });
+    }
   });
 
   income = Number(income.toFixed(2));
   expense = Number(expense.toFixed(2));
+  todayIncome = Number(todayIncome.toFixed(2));
+  todayExpense = Number(todayExpense.toFixed(2));
 
   // 3. Build Category Budgets vs Category Spend Comparison
   const categoryBudgetsRaw = user?.categoryBudgets ? (user.categoryBudgets instanceof Map ? Object.fromEntries(user.categoryBudgets) : user.categoryBudgets) : {};
@@ -86,21 +117,7 @@ const buildFinanceContext = async (userId) => {
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5);
 
-  // 5. Fetch Active Recurring Transactions & Subscriptions
-  const recurringTransactions = await RecurringTransaction.find({
-    user: userId,
-    status: "active",
-  }).sort({ nextExecutionDate: 1 });
-
-  // 6. Fetch 20 most recent transactions overall (populating bankAccount)
-  const transactions = await Transaction.find({
-    user: userId,
-  })
-    .populate("bankAccount")
-    .sort({ transactionDate: -1 })
-    .limit(20);
-
-  // 7. Build currency-aware budget snapshot (matches dashboard logic exactly)
+  // 5. Build currency-aware budget snapshot (matches dashboard logic exactly)
   const budgetSnapshot = await buildBudgetSnapshot(user, userCurrency, expense);
   const monthlyBudget = budgetSnapshot.budgetLimit;
 
@@ -111,6 +128,12 @@ const buildFinanceContext = async (userId) => {
       monthlyBudget,
       subscription: user?.subscription || { plan: "free", status: "inactive" },
       aiUsage: user?.aiUsage || {},
+    },
+    today: {
+      date: now.toISOString().split("T")[0],
+      expense: todayExpense,
+      income: todayIncome,
+      transactions: todayTransactions,
     },
     bankAccounts: bankAccounts.map((b) => ({
       id: b._id.toString(),
@@ -135,7 +158,7 @@ const buildFinanceContext = async (userId) => {
       nextExecutionDate: rt.nextExecutionDate ? rt.nextExecutionDate.toISOString().split("T")[0] : "N/A",
       paymentMethod: rt.paymentMethod,
     })),
-    transactions: transactions.map((t) => {
+    transactions: recentTransactions.map((t) => {
       let bankName = "";
       if (t.bankAccount) {
         if (typeof t.bankAccount === "object") {
@@ -152,7 +175,7 @@ const buildFinanceContext = async (userId) => {
         amount: selectStoredAmount(t, userCurrency),
         category: t.category,
         description: t.description,
-        date: t.transactionDate ? t.transactionDate.toISOString().split("T")[0] : "N/A",
+        date: t.transactionDate ? new Date(t.transactionDate).toISOString().split("T")[0] : "N/A",
         paymentMethod: t.paymentMethod,
         bankAccountName: bankName,
       };

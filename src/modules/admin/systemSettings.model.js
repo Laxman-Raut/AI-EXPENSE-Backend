@@ -13,7 +13,7 @@ const systemSettingsSchema = new mongoose.Schema(
         "gemini-2.0-flash",
         "gemini-flash-latest"
       ],
-      default: "gemini-3.6-flash",
+      default: "gemini-3.1-flash-lite",
     },
     geminiApiKey: {
       type: String,
