@@ -22,6 +22,7 @@ const findPlanById = async (id) => {
 const findAllPlans = async () => {
   return await Plan.find().sort({
     displayOrder: 1,
+    price: 1,
     version: -1,
   });
 };
@@ -34,6 +35,7 @@ const findPublicPlans = async () => {
     isCurrent: true,
   }).sort({
     displayOrder: 1,
+    price: 1,
   });
 };
 
