@@ -121,6 +121,14 @@ const createPlan = async (req, res) => {
       req.user.userId
     );
 
+    recordAuditLog({
+      req,
+      action: "PLAN_CREATE",
+      category: "plan",
+      description: `Created new plan tier '${plan.name}' (${plan.currency || 'INR'} ${plan.price}).`,
+      metadata: { planId: plan._id, planName: plan.name, price: plan.price },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Plan created successfully.",
@@ -146,9 +154,17 @@ const updatePlan = async (req, res) => {
       req.user.userId
     );
 
+    recordAuditLog({
+      req,
+      action: "PLAN_UPDATE",
+      category: "plan",
+      description: `Updated plan tier '${plan.name}' with latest configurations and limits.`,
+      metadata: { planId: plan._id, planName: plan.name },
+    });
+
     return res.status(200).json({
       success: true,
-      message: "New plan version created successfully.",
+      message: "Plan updated successfully.",
       data: plan,
     });
   } catch (error) {
