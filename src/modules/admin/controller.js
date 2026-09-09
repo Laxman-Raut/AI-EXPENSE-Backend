@@ -27,6 +27,7 @@ const {
     getAdminCampaignsService,
 } = require("./service");
 const SupportQuery = require("../support/model");
+const { getAuditLogs, recordAuditLog } = require("./auditLog.service");
 
 // ======================================
 // Dashboard
@@ -478,6 +479,14 @@ const toggleUserStatus = async (req, res) => {
   try {
     const data = await toggleUserStatusService(req.params.id);
 
+    recordAuditLog({
+      req,
+      action: "USER_STATUS_CHANGE",
+      category: "user",
+      description: `User account (${data.email || data._id}) status set to ${data.accountStatus}.`,
+      metadata: { targetUserId: data._id, targetUserEmail: data.email, newStatus: data.accountStatus },
+    });
+
     return res.status(200).json({
       success: true,
       message: `User account ${data.accountStatus === 'suspended' ? 'suspended' : 'activated'} successfully.`,
@@ -879,6 +888,22 @@ const replySupportQueryCtrl = async (req, res) => {
   }
 };
 
+const getAuditLogsCtrl = async (req, res) => {
+  try {
+    const { limit, category } = req.query;
+    const logs = await getAuditLogs({ limit, category });
+    return res.status(200).json({
+      success: true,
+      data: logs,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -915,4 +940,5 @@ module.exports = {
       getAdminSupportQueriesCtrl,
       updateSupportQueryStatusCtrl,
       replySupportQueryCtrl,
+      getAuditLogsCtrl,
 };
