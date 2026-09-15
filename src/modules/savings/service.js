@@ -76,18 +76,19 @@ const getJars = async (userId, statusFilter = null) => {
   const completedJarsCount = allJars.filter((j) => j.status === "completed").length;
   const archivedJarsCount = allJars.filter((j) => j.status === "archived").length;
 
+  const allFormattedJars = allJars.map((jar) => formatJarForCurrency(jar, targetCurrency));
   const rawJars = statusFilter ? allJars.filter((j) => j.status === statusFilter) : allJars;
   const jars = rawJars.map((jar) => formatJarForCurrency(jar, targetCurrency));
 
   const totalSavings = Number(
-    jars
+    allFormattedJars
       .filter((j) => j.status !== "archived")
       .reduce((sum, jar) => sum + getJarBalanceForCurrency(jar, targetCurrency), 0)
       .toFixed(2)
   );
 
   const recentTransactions = [];
-  jars.forEach((jar) => {
+  allFormattedJars.forEach((jar) => {
     (jar.transactions || []).forEach((t) => {
       recentTransactions.push({
         _id: t._id,
@@ -194,7 +195,7 @@ const createJar = async (userId, data) => {
 
   jar.updateStatusBasedOnTarget();
   await jar.save();
-  return jar.toObject();
+  return formatJarForCurrency(jar.toObject(), userCurrency);
 };
 
 const updateJar = async (userId, jarId, data) => {
@@ -230,7 +231,7 @@ const updateJar = async (userId, jarId, data) => {
 
   jar.updateStatusBasedOnTarget();
   await jar.save();
-  return jar.toObject();
+  return formatJarForCurrency(jar.toObject(), userCurrency);
 };
 
 const deleteJar = async (userId, jarId) => {
@@ -469,8 +470,8 @@ const transfer = async (userId, fromJarId, toJarId, amount, notes = "") => {
   await toJar.save();
 
   return {
-    fromJar: fromJar.toObject(),
-    toJar: toJar.toObject(),
+    fromJar: formatJarForCurrency(fromJar.toObject(), userCurrency),
+    toJar: formatJarForCurrency(toJar.toObject(), userCurrency),
     amount: transferAmount,
     message: `Transferred ${transferAmount.toFixed(2)} from ${fromJar.name} to ${toJar.name}`,
   };
@@ -545,7 +546,9 @@ const getPeriodDates = (period) => {
   if (period === "weekly") {
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    startDate = new Date(now.setDate(diff));
+    const weekStart = new Date(now);
+    weekStart.setDate(diff);
+    startDate = weekStart;
     startDate.setHours(0, 0, 0, 0);
     endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 7);
@@ -580,12 +583,20 @@ const getSavingsGoalProgress = async (userId, preloadedCurrency = null, preloade
   jars.forEach((jar) => {
     (jar.transactions || []).forEach((t) => {
       const txDate = t.createdAt ? new Date(t.createdAt) : null;
-      if (t.type === "deposit" && txDate && txDate >= startDate && txDate < endDate) {
-        savedInPeriodINR += selectStoredAmount(t, "INR");
-        savedInPeriodUSD += selectStoredAmount(t, "USD");
+      if (txDate && txDate >= startDate && txDate < endDate) {
+        if (t.type === "deposit") {
+          savedInPeriodINR += selectStoredAmount(t, "INR");
+          savedInPeriodUSD += selectStoredAmount(t, "USD");
+        } else if (t.type === "withdraw") {
+          savedInPeriodINR -= selectStoredAmount(t, "INR");
+          savedInPeriodUSD -= selectStoredAmount(t, "USD");
+        }
       }
     });
   });
+
+  savedInPeriodINR = Math.max(savedInPeriodINR, 0);
+  savedInPeriodUSD = Math.max(savedInPeriodUSD, 0);
 
   const goalAmount = targetCurrency === "USD"
     ? Number(targetAmountUSD ?? 0)

@@ -1,4 +1,5 @@
-const SavingsJar = require("./savings.model");
+// Deprecated repository - service.js handles all savings operations directly
+const SavingsJar = require("./model");
 
 const getJarsRepo = async (userId, status) => {
   const query = { user: userId };
