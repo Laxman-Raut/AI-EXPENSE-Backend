@@ -27,6 +27,7 @@ const {
     getAdminCampaignsService,
 } = require("./service");
 const SupportQuery = require("../support/model");
+const { getAuditLogs, recordAuditLog } = require("./auditLog.service");
 
 // ======================================
 // Dashboard
@@ -120,6 +121,14 @@ const createPlan = async (req, res) => {
       req.user.userId
     );
 
+    recordAuditLog({
+      req,
+      action: "PLAN_CREATE",
+      category: "plan",
+      description: `Created new plan tier '${plan.name}' (${plan.currency || 'INR'} ${plan.price}).`,
+      metadata: { planId: plan._id, planName: plan.name, price: plan.price },
+    });
+
     return res.status(201).json({
       success: true,
       message: "Plan created successfully.",
@@ -145,9 +154,17 @@ const updatePlan = async (req, res) => {
       req.user.userId
     );
 
+    recordAuditLog({
+      req,
+      action: "PLAN_UPDATE",
+      category: "plan",
+      description: `Updated plan tier '${plan.name}' with latest configurations and limits.`,
+      metadata: { planId: plan._id, planName: plan.name },
+    });
+
     return res.status(200).json({
       success: true,
-      message: "New plan version created successfully.",
+      message: "Plan updated successfully.",
       data: plan,
     });
   } catch (error) {
@@ -477,6 +494,14 @@ const getSubscriptionMetrics = async (req, res) => {
 const toggleUserStatus = async (req, res) => {
   try {
     const data = await toggleUserStatusService(req.params.id);
+
+    recordAuditLog({
+      req,
+      action: "USER_STATUS_CHANGE",
+      category: "user",
+      description: `User account (${data.email || data._id}) status set to ${data.accountStatus}.`,
+      metadata: { targetUserId: data._id, targetUserEmail: data.email, newStatus: data.accountStatus },
+    });
 
     return res.status(200).json({
       success: true,
@@ -879,6 +904,22 @@ const replySupportQueryCtrl = async (req, res) => {
   }
 };
 
+const getAuditLogsCtrl = async (req, res) => {
+  try {
+    const { limit, category } = req.query;
+    const logs = await getAuditLogs({ limit, category });
+    return res.status(200).json({
+      success: true,
+      data: logs,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -915,4 +956,5 @@ module.exports = {
       getAdminSupportQueriesCtrl,
       updateSupportQueryStatusCtrl,
       replySupportQueryCtrl,
+      getAuditLogsCtrl,
 };

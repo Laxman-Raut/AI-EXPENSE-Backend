@@ -3,6 +3,8 @@ const {
   refreshAccessToken,
   revokeRefreshToken,
   revokeAllUserTokens,
+  changePassword: changePasswordService,
+  getUserSessions: getUserSessionsService,
   registerUser,
   sendRegistrationOtp: sendRegistrationOtpService,
   completeRegistration: completeRegistrationService,
@@ -17,6 +19,7 @@ const {
   resetPassword: resetPasswordService,
   handleSupportRequest,
 } = require("./service");
+const { recordAuditLog } = require("../admin/auditLog.service");
 
 const sendRegistrationOtpController = async (req, res) => {
   try {
@@ -104,6 +107,20 @@ const login = async (req, res) => {
         path: "/api",
       });
 
+      // Record audit log for dashboard admin login
+      if (result.user && (result.user.role === "admin" || result.user.role === "super_admin")) {
+        recordAuditLog({
+          req,
+          adminId: result.user._id,
+          adminName: result.user.fullName,
+          adminEmail: result.user.email,
+          action: "ADMIN_LOGIN",
+          category: "auth",
+          description: "Administrator logged in to Web Dashboard.",
+          metadata: { role: result.user.role },
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: "Login Successful",
@@ -167,6 +184,19 @@ const profile = async (req, res) => {
 const update = async (req, res) => {
   try {
     const user = await updateProfile(req.user.userId, req.body);
+
+    if (user && (user.role === "admin" || user.role === "super_admin")) {
+      recordAuditLog({
+        req,
+        adminId: user._id,
+        adminName: user.fullName,
+        adminEmail: user.email,
+        action: "PROFILE_UPDATE",
+        category: "settings",
+        description: `Updated profile attributes: ${Object.keys(req.body).join(", ")}.`,
+        metadata: { updatedFields: Object.keys(req.body) },
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -442,9 +472,91 @@ const logoutCtrl = async (req, res) => {
   }
 };
 
+const changePasswordCtrl = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId || req.user.id;
+    const result = await changePasswordService(userId, currentPassword, newPassword);
+
+    recordAuditLog({
+      req,
+      adminId: userId,
+      adminName: req.user.fullName || "Administrator",
+      adminEmail: req.user.email || "",
+      action: "PASSWORD_CHANGE",
+      category: "security",
+      description: "Master administrator password updated successfully.",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getUserSessionsCtrl = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    const sessions = await getUserSessionsService(userId);
+
+    return res.status(200).json({
+      success: true,
+      data: sessions,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const logoutAllCtrl = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    await revokeAllUserTokens(userId);
+
+    recordAuditLog({
+      req,
+      adminId: userId,
+      adminName: req.user.fullName || "Administrator",
+      adminEmail: req.user.email || "",
+      action: "SESSIONS_REVOKE_ALL",
+      category: "security",
+      description: "Revoked all active refresh tokens and signed out all devices.",
+    });
+
+    // Clear both cookies
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out from all sessions successfully.",
+    });
+  } catch (error) {
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api" });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out from all sessions.",
+    });
+  }
+};
+
 module.exports = {
   refreshTokenCtrl,
   logoutCtrl,
+  logoutAllCtrl,
+  changePasswordCtrl,
+  getUserSessionsCtrl,
   register,
   sendRegistrationOtp: sendRegistrationOtpController,
   completeRegistration: completeRegistrationController,

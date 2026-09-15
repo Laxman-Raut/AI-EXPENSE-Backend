@@ -38,6 +38,7 @@ const {
    getAdminSupportQueriesCtrl,
    updateSupportQueryStatusCtrl,
    replySupportQueryCtrl,
+   getAuditLogsCtrl,
 } = require("./controller");
 
 const {
@@ -385,6 +386,14 @@ router.post(
   authenticate,
   requireAdmin,
   replySupportQueryCtrl
+);
+
+// Administrative Audit Logs
+router.get(
+  "/audit-logs",
+  authenticate,
+  requireAdmin,
+  getAuditLogsCtrl
 );
 
 module.exports = router;

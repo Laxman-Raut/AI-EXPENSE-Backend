@@ -97,6 +97,9 @@ const createPlanVersionService = async (
     displayOrder: updateData.displayOrder ?? currentPlan.displayOrder,
     color: updateData.color ?? currentPlan.color,
     icon: updateData.icon ?? currentPlan.icon,
+    limits: updateData.limits
+      ? { ...(currentPlan.limits ? currentPlan.limits.toObject ? currentPlan.limits.toObject() : currentPlan.limits : {}), ...updateData.limits }
+      : currentPlan.limits,
     createdBy: adminId,
     updatedBy: adminId,
     isCurrent: true,

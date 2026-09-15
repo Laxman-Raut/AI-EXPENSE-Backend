@@ -2,6 +2,9 @@ const express = require("express");
 const {
   refreshTokenCtrl,
   logoutCtrl,
+  logoutAllCtrl,
+  changePasswordCtrl,
+  getUserSessionsCtrl,
   register,
   sendRegistrationOtp,
   completeRegistration,
@@ -38,10 +41,13 @@ router.post("/complete-registration", completeRegistration);
 router.post("/login", validateLogin, login);
 router.post("/refresh-token", refreshTokenCtrl);
 router.post("/logout", authenticate, logoutCtrl);
+router.post("/logout-all", authenticate, logoutAllCtrl);
 router.post("/google", googleLogin);
 
 router.get("/me", authenticate, profile);
 router.put("/profile", authenticate, update);
+router.post("/change-password", authenticate, changePasswordCtrl);
+router.get("/sessions", authenticate, getUserSessionsCtrl);
 router.post("/support", authenticate, support);
 
 router.post("/forgot-password", forgotPassword);

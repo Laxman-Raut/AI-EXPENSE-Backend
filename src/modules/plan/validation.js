@@ -15,6 +15,15 @@ const createPlanSchema = z.object({
   displayOrder: z.number().int().min(0).optional().default(0),
   color: z.string().optional().default("#2563EB"),
   icon: z.string().optional().default("crown"),
+  limits: z
+    .object({
+      chatbotLimit: z.number().int().min(0).optional(),
+      receiptScannerLimit: z.number().int().min(0).optional(),
+      voiceScannerLimit: z.number().int().min(0).optional(),
+      gracePeriodDays: z.number().int().min(0).optional(),
+      enableSplitBill: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const updatePlanSchema = z.object({
@@ -32,6 +41,15 @@ const updatePlanSchema = z.object({
   displayOrder: z.number().int().min(0).optional(),
   color: z.string().optional(),
   icon: z.string().optional(),
+  limits: z
+    .object({
+      chatbotLimit: z.number().int().min(0).optional(),
+      receiptScannerLimit: z.number().int().min(0).optional(),
+      voiceScannerLimit: z.number().int().min(0).optional(),
+      gracePeriodDays: z.number().int().min(0).optional(),
+      enableSplitBill: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 const validateCreatePlan = (req, res, next) => {

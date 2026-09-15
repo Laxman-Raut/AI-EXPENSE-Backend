@@ -688,11 +688,55 @@ const revokeAllUserTokens = async (userId) => {
   await RefreshToken.deleteMany({ userId });
 };
 
+// Change Password for authenticated user
+const changePassword = async (userId, currentPassword, newPassword) => {
+  if (!currentPassword || !newPassword) {
+    throw new Error("Current password and new password are required.");
+  }
+
+  if (newPassword.length < 6) {
+    throw new Error("New password must be at least 6 characters long.");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    throw new Error("Incorrect current password. Please try again.");
+  }
+
+  if (currentPassword === newPassword) {
+    throw new Error("New password must be different from your current password.");
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  return { message: "Password updated successfully." };
+};
+
+// Get active sessions for user from RefreshToken collection
+const getUserSessions = async (userId) => {
+  const sessions = await RefreshToken.find({
+    userId,
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ createdAt: -1 })
+    .select("_id userAgent createdAt expiresAt");
+
+  return sessions;
+};
+
 module.exports = {
   generateTokenPair,
   refreshAccessToken,
   revokeRefreshToken,
   revokeAllUserTokens,
+  changePassword,
+  getUserSessions,
   registerUser,
   sendRegistrationOtp,
   verifyRegistrationOtp,
