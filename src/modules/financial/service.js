@@ -63,12 +63,25 @@ const hydrateTransaction = (tx, targetCurrency = "INR") => {
 const hydrateSavingsJar = (jar, targetCurrency = "INR") => {
   const normalized = normalizeCurrency(targetCurrency);
   const currentAmount = selectStoredAmount(jar, normalized);
-  const targetAmount = selectStoredAmount(jar, normalized);
+  const targetAmount = jar.targetAmount !== null && jar.targetAmount !== undefined
+    ? selectStoredAmount(
+        {
+          originalAmount: jar.targetAmount,
+          originalCurrency: jar.originalCurrency || normalized,
+          exchangeRate: jar.exchangeRate,
+          amountINR: jar.targetAmountINR,
+          amountUSD: jar.targetAmountUSD,
+          targetAmountINR: jar.targetAmountINR,
+          targetAmountUSD: jar.targetAmountUSD,
+        },
+        normalized
+      )
+    : null;
 
   return {
     ...jar,
     currentAmount,
-    targetAmount: jar.targetAmount !== null && jar.targetAmount !== undefined ? selectStoredAmount(jar, normalized) : null,
+    targetAmount,
     currentAmountINR: jar.currentAmountINR !== null && jar.currentAmountINR !== undefined
       ? Number(jar.currentAmountINR)
       : (normalized === "INR" ? currentAmount : null),

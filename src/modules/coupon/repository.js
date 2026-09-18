@@ -82,7 +82,7 @@ const getCouponStats = async () => {
       { $group: { _id: null, total: { $sum: "$usedCount" } } }
     ]),
     Payment.aggregate([
-      { $match: { couponCode: { $ne: null }, status: "completed" } },
+      { $match: { couponCode: { $ne: null, $ne: "" }, status: "success" } },
       { $group: { _id: null, totalDiscount: { $sum: "$discountAmount" } } }
     ])
   ]);
