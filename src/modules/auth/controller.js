@@ -446,10 +446,12 @@ const refreshTokenCtrl = async (req, res) => {
 // Logout Controller — revokes refresh token and clears cookies
 const logoutCtrl = async (req, res) => {
   try {
-    const rawRefreshToken = req.cookies?.refresh_token;
+    const rawRefreshToken = req.body?.refreshToken || req.cookies?.refresh_token;
 
     if (rawRefreshToken) {
       await revokeRefreshToken(rawRefreshToken);
+    } else if (req.user?.userId || req.user?.id) {
+      await revokeAllUserTokens(req.user.userId || req.user.id);
     }
 
     // Clear both cookies

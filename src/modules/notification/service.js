@@ -45,9 +45,11 @@ const getUserNotifications = async (userId) => {
 };
 
 // Mark Notification as Read
-const markAsRead = async (notificationId) => {
-  return await Notification.findByIdAndUpdate(
-    notificationId,
+const markAsRead = async (notificationId, userId = null) => {
+  const query = { _id: notificationId };
+  if (userId) query.user = userId;
+  return await Notification.findOneAndUpdate(
+    query,
     {
       read: true,
     },
@@ -58,8 +60,10 @@ const markAsRead = async (notificationId) => {
 };
 
 // Delete One Notification
-const deleteNotification = async (notificationId) => {
-  return await Notification.findByIdAndDelete(notificationId);
+const deleteNotification = async (notificationId, userId = null) => {
+  const query = { _id: notificationId };
+  if (userId) query.user = userId;
+  return await Notification.findOneAndDelete(query);
 };
 
 // Clear All Notifications of User

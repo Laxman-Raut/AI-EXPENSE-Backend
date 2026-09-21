@@ -48,7 +48,14 @@ const createNotification = async (req, res) => {
 const markAsRead = async (req, res) => {
   try {
     const notification =
-      await notificationService.markAsRead(req.params.id);
+      await notificationService.markAsRead(req.params.id, req.user.userId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found.",
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -65,16 +72,23 @@ const markAsRead = async (req, res) => {
 // Delete one notification
 const deleteNotification = async (req, res) => {
   try {
-    await notificationService.deleteNotification(req.params.id);
+    const notification = await notificationService.deleteNotification(req.params.id, req.user.userId);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found.",
+      });
+    }
 
     res.status(200).json({
       success: true,
       message: "Notification deleted successfully.",
     });
   } catch (error) {
-              res.status(500).json({
+    res.status(500).json({
       success: false,
-          message: error.message,
+      message: error.message,
     });
   }
 };
