@@ -18,6 +18,7 @@ const {
     getRevenueByPlan,
       getUsers,
       getUserById,
+      createUser,
     getPlans,
     createPlan,
     updatePlan,
@@ -170,6 +171,11 @@ const getUsersService = async (query) => {
 
 const getUserByIdService = async (userId) => {
   return await getUserById(userId);
+};
+
+// Create User (Admin)
+const createUserService = async (userData) => {
+  return await createUser(userData);
 };
 
 // Get Plans
@@ -425,6 +431,7 @@ module.exports = {
     getDashboardService,
     getUsersService,
     getUserByIdService,
+    createUserService,
     getPlansService,
     createPlanService,
     updatePlanService,

@@ -8,8 +8,7 @@ const SubscriptionHistory = require("../subscription-history/model");
 const generateOTP = require("../auth/otp");
 const { sendOtpEmail } = require("../email");
 const { sendBulkPushNotifications } = require("../../config/firebaseAdmin");
-
-
+const bcrypt = require("bcrypt");
 
 // Users
 
@@ -512,6 +511,92 @@ const getUserById = async (userId) => {
   return {
     user,
     payments,
+  };
+};
+
+// ======================================
+// Create User (Admin)
+// ======================================
+
+const createUser = async ({
+  fullName,
+  email,
+  password,
+  mobile = "",
+  role = "user",
+  plan = "free",
+  accountStatus = "active",
+}) => {
+  const cleanEmail = email ? email.toLowerCase().trim() : "";
+  const cleanName = fullName ? fullName.trim() : "";
+
+  if (!cleanName || cleanName.length < 3) {
+    throw new Error("Full name must be at least 3 characters.");
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+    throw new Error("Please provide a valid email address.");
+  }
+  if (!password || password.length < 6) {
+    throw new Error("Password must be at least 6 characters long.");
+  }
+
+  const existing = await User.findOne({ email: cleanEmail });
+  if (existing) {
+    throw new Error("A user with this email address already exists.");
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const planSlug = (plan || "free").toLowerCase().trim();
+  const isPaid = planSlug !== "free" && planSlug !== "none";
+  const subscriptionData = {
+    plan: planSlug,
+    status: isPaid ? "active" : "inactive",
+    provider: isPaid ? "manual" : "none",
+    startDate: isPaid ? new Date() : null,
+    endDate: isPaid ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+    autoRenew: false,
+    note: "Account created by Administrator",
+  };
+
+  const usageQuotas = {
+    chatbot: { used: 0, limit: 0, lastResetDate: "" },
+    receiptScanner: { used: 0, limit: 0, lastResetDate: "" },
+    voiceScanner: { used: 0, limit: 0, lastResetDate: "" },
+  };
+
+  if (isPaid) {
+    const dbPlan = await Plan.findOne({ slug: planSlug, isCurrent: true });
+    if (dbPlan?.limits) {
+      usageQuotas.chatbot.limit = dbPlan.limits.chatbotLimit || 0;
+      usageQuotas.receiptScanner.limit = dbPlan.limits.receiptScannerLimit || 0;
+      usageQuotas.voiceScanner.limit = dbPlan.limits.voiceScannerLimit || 0;
+    }
+  }
+
+  const user = await User.create({
+    fullName: cleanName,
+    email: cleanEmail,
+    password: hashedPassword,
+    mobile: mobile ? mobile.trim() : "",
+    role: role === "admin" ? "admin" : "user",
+    accountStatus: accountStatus === "suspended" ? "suspended" : "active",
+    isVerified: true,
+    subscription: subscriptionData,
+    usage: usageQuotas,
+  });
+
+  return {
+    _id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    mobile: user.mobile,
+    role: user.role,
+    accountStatus: user.accountStatus,
+    isVerified: user.isVerified,
+    subscription: user.subscription,
+    createdAt: user.createdAt,
   };
 };
 
@@ -1942,8 +2027,9 @@ module.exports = {
     getSubscriptionDistribution,
     getRevenueByPlan,
     getUsers,
-     getUserById,
-     getPlans,
+    getUserById,
+    createUser,
+    getPlans,
       createPlan,
       updatePlan,
     updatePlanStatus,

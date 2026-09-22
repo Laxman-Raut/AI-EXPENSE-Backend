@@ -6,6 +6,7 @@ const {
   getDashboard,
   getUsers,
   getUserById,
+  createAdminUser,
    getPlans,
    createPlan,
    updatePlan,
@@ -47,6 +48,7 @@ const {
   getUserReportCtrl,
   getSubscriptionReportCtrl,
   getPaymentReportCtrl,
+  getAnalyticsReportCtrl,
 } = require("./reports.controller");
 
 const {
@@ -98,6 +100,13 @@ router.get(
   authenticate,
   requireAdmin,
   getUsers
+);
+
+router.post(
+  "/users",
+  authenticate,
+  requireAdmin,
+  createAdminUser
 );
 
 router.get(
@@ -262,6 +271,17 @@ router.put("/coupons/:id", authenticate, requireAdmin, updateCouponCtrl);
 router.patch("/coupons/:id/status", authenticate, requireAdmin, toggleCouponStatusCtrl);
 router.delete("/coupons/:id", authenticate, requireAdmin, deleteCouponCtrl);
 
+
+// ======================================
+// Analytics
+// ======================================
+
+router.get(
+  "/analytics",
+  authenticate,
+  requireAdmin,
+  getAnalyticsReportCtrl
+);
 
 // ======================================
 // Reports

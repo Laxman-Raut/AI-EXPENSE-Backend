@@ -2,6 +2,7 @@ const {
   getDashboardService,
    getUsersService,
    getUserByIdService,
+   createUserService,
     getPlansService,
     createPlanService,
     updatePlanService,
@@ -85,6 +86,39 @@ const getUserById = async (req, res) => {
     });
   } catch (error) {
     return res.status(404).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Create User (Admin)
+// ======================================
+
+const createAdminUser = async (req, res) => {
+  try {
+    const user = await createUserService(req.body);
+
+    recordAuditLog({
+      req,
+      action: "USER_CREATE",
+      category: "user",
+      description: `Admin created user ${user.fullName} (${user.email}) with role '${user.role}' and plan '${user.subscription?.plan || "free"}'.`,
+      metadata: {
+        targetUserId: user._id,
+        targetUserEmail: user.email,
+        role: user.role,
+        plan: user.subscription?.plan,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully.",
+      data: user,
+    });
+  } catch (error) {
+    return res.status(400).json({
       success: false,
       message: error.message,
     });
@@ -923,8 +957,9 @@ const getAuditLogsCtrl = async (req, res) => {
 module.exports = {
   getDashboard,
   getUsers,
-     getUserById,
-     getPlans,
+  getUserById,
+  createAdminUser,
+  getPlans,
      createPlan,
      updatePlan,
       updatePlanStatus,
