@@ -940,6 +940,25 @@ const replySupportQueryCtrl = async (req, res) => {
   }
 };
 
+const deleteSupportQueryCtrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const query = await SupportQuery.findByIdAndDelete(id);
+    if (!query) {
+      return res.status(404).json({ success: false, message: "Support query not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Support query deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const getAuditLogsCtrl = async (req, res) => {
   try {
     const { limit, category } = req.query;
@@ -993,5 +1012,6 @@ module.exports = {
       getAdminSupportQueriesCtrl,
       updateSupportQueryStatusCtrl,
       replySupportQueryCtrl,
+      deleteSupportQueryCtrl,
       getAuditLogsCtrl,
 };

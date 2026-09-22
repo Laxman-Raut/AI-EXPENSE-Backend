@@ -39,6 +39,7 @@ const {
    getAdminSupportQueriesCtrl,
    updateSupportQueryStatusCtrl,
    replySupportQueryCtrl,
+   deleteSupportQueryCtrl,
    getAuditLogsCtrl,
 } = require("./controller");
 
@@ -406,6 +407,13 @@ router.post(
   authenticate,
   requireAdmin,
   replySupportQueryCtrl
+);
+
+router.delete(
+  "/support-queries/:id",
+  authenticate,
+  requireAdmin,
+  deleteSupportQueryCtrl
 );
 
 // Administrative Audit Logs
