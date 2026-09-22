@@ -26,6 +26,8 @@ const {
     getSegmentAudienceCountService,
     sendAdminBroadcastService,
     getAdminCampaignsService,
+    updateCampaignStatusService,
+    deleteCampaignService,
 } = require("./service");
 const SupportQuery = require("../support/model");
 const { getAuditLogs, recordAuditLog } = require("./auditLog.service");
