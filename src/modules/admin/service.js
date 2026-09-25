@@ -8,6 +8,8 @@ const {
     getMonthlyRevenue,
     getTodayUsers,
     getMonthlyUsers,
+    getLastMonthUsers,
+    getMonthlyUsersTrend,
     getLatestUsers,
     getLatestPayments,
     getActivePlans,
@@ -62,6 +64,8 @@ const getDashboardService = async () => {
 
         todayUsers,
         monthlyUsers,
+        lastMonthUsers,
+        monthlyUsersTrend,
 
         latestUsers,
         latestPayments,
@@ -86,6 +90,8 @@ const getDashboardService = async () => {
 
         getTodayUsers(),
         getMonthlyUsers(),
+        getLastMonthUsers(),
+        getMonthlyUsersTrend(),
 
         getLatestUsers(),
         getLatestPayments(),
@@ -99,6 +105,16 @@ const getDashboardService = async () => {
         getAdvancedMetrics(),
     ]);
 
+    // Calculate monthly signups growth % (this month vs last month)
+    let monthlySignupsGrowth = 0;
+    if (lastMonthUsers > 0) {
+        monthlySignupsGrowth = parseFloat(
+            (((monthlyUsers - lastMonthUsers) / lastMonthUsers) * 100).toFixed(1)
+        );
+    } else if (monthlyUsers > 0) {
+        monthlySignupsGrowth = 100.0;
+    }
+
     return {
         cards: {
             users: {
@@ -108,6 +124,8 @@ const getDashboardService = async () => {
                 free: freeUsers,
                 today: todayUsers,
                 monthly: monthlyUsers,
+                lastMonth: lastMonthUsers,
+                monthlyGrowth: monthlySignupsGrowth,
             },
 
             revenue: {
@@ -129,6 +147,7 @@ const getDashboardService = async () => {
         charts: {
             revenueTrend,
             userGrowthTrend,
+            monthlyUsersTrend,
             subscriptionDistribution,
              revenueByPlan,
         },

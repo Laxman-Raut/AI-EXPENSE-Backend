@@ -196,6 +196,54 @@ const getMonthlyUsers = () => {
 };
 
 // ======================================
+// New Users Last Month (for growth % calculation)
+// ======================================
+
+const getLastMonthUsers = () => {
+    const now = new Date();
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return User.countDocuments({
+        createdAt: {
+            $gte: lastMonthStart,
+            $lt: thisMonthStart,
+        },
+    });
+};
+
+// ======================================
+// Monthly Users Trend (daily signups for current month — for sparkline)
+// ======================================
+
+const getMonthlyUsersTrend = async () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return User.aggregate([
+        {
+            $match: {
+                createdAt: { $gte: start },
+            },
+        },
+        {
+            $group: {
+                _id: {
+                    $dateToString: {
+                        format: "%Y-%m-%d",
+                        date: "$createdAt",
+                    },
+                },
+                users: { $sum: 1 },
+            },
+        },
+        {
+            $sort: { _id: 1 },
+        },
+    ]);
+};
+
+// ======================================
 // Latest Users
 // ======================================
 
@@ -2018,6 +2066,8 @@ module.exports = {
     getMonthlyRevenue,
     getTodayUsers,
     getMonthlyUsers,
+    getLastMonthUsers,
+    getMonthlyUsersTrend,
     getLatestUsers,
     getLatestPayments,
     getActivePlans,
