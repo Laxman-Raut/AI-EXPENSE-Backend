@@ -27,6 +27,7 @@ const getPremiumUsers = () =>
     User.countDocuments({
         "subscription.plan": { $ne: "free" },
         "subscription.status": "active",
+        "accountStatus": { $ne: "suspended" },
     });
 
 const getFreeUsers = () =>
@@ -131,10 +132,7 @@ const getMonthlyRevenue = async () => {
     const end = new Date(
         now.getFullYear(),
         now.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
+        1
     );
 
     const result = await Payment.aggregate([
@@ -143,7 +141,7 @@ const getMonthlyRevenue = async () => {
                 status: "success",
                 paidAt: {
                     $gte: start,
-                    $lte: end,
+                    $lt: end,
                 },
             },
         },
@@ -153,6 +151,36 @@ const getMonthlyRevenue = async () => {
                 total: {
                     $sum: "$amount",
                 },
+            },
+        },
+    ]);
+
+    return result[0]?.total || 0;
+};
+
+// ======================================
+// Revenue Last Month (for growth % calculation)
+// ======================================
+
+const getLastMonthRevenue = async () => {
+    const now = new Date();
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const result = await Payment.aggregate([
+        {
+            $match: {
+                status: "success",
+                paidAt: {
+                    $gte: lastMonthStart,
+                    $lt: thisMonthStart,
+                },
+            },
+        },
+        {
+            $group: {
+                _id: null,
+                total: { $sum: "$amount" },
             },
         },
     ]);
@@ -220,7 +248,7 @@ const getMonthlyUsersTrend = async () => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    return User.aggregate([
+    const rawData = await User.aggregate([
         {
             $match: {
                 createdAt: { $gte: start },
@@ -237,10 +265,20 @@ const getMonthlyUsersTrend = async () => {
                 users: { $sum: 1 },
             },
         },
-        {
-            $sort: { _id: 1 },
-        },
+        { $sort: { _id: 1 } },
     ]);
+
+    // Zero-fill all days from 1st of month to today
+    const result = [];
+    const today = new Date();
+    const cursor = new Date(start);
+    while (cursor <= today) {
+        const dateStr = cursor.toISOString().split("T")[0];
+        const found = rawData.find((r) => r._id === dateStr);
+        result.push({ _id: dateStr, users: found ? found.users : 0 });
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return result;
 };
 
 // ======================================
@@ -249,7 +287,7 @@ const getMonthlyUsersTrend = async () => {
 
 const getLatestUsers = () => {
     return User.find()
-        .select("fullName email createdAt")
+        .select("fullName email createdAt subscription accountStatus")
         .sort({
             createdAt: -1,
         })
@@ -366,12 +404,10 @@ const getUserGrowthTrend = async () => {
     startDate.setDate(startDate.getDate() - 6);
     startDate.setHours(0, 0, 0, 0);
 
-    return User.aggregate([
+    const rawData = await User.aggregate([
         {
             $match: {
-                createdAt: {
-                    $gte: startDate,
-                },
+                createdAt: { $gte: startDate },
             },
         },
         {
@@ -382,17 +418,22 @@ const getUserGrowthTrend = async () => {
                         date: "$createdAt",
                     },
                 },
-                users: {
-                    $sum: 1,
-                },
+                users: { $sum: 1 },
             },
         },
-        {
-            $sort: {
-                _id: 1,
-            },
-        },
+        { $sort: { _id: 1 } },
     ]);
+
+    // Zero-fill all 7 days so sparkline always has complete data
+    const result = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        const found = rawData.find((r) => r._id === dateStr);
+        result.push({ _id: dateStr, users: found ? found.users : 0 });
+    }
+    return result;
 };
 
 // Subscription Distribution
@@ -2064,6 +2105,7 @@ module.exports = {
     getTotalRevenue,
     getTodayRevenue,
     getMonthlyRevenue,
+    getLastMonthRevenue,
     getTodayUsers,
     getMonthlyUsers,
     getLastMonthUsers,

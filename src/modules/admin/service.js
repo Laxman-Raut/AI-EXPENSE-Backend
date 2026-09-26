@@ -6,6 +6,7 @@ const {
     getTotalRevenue,
     getTodayRevenue,
     getMonthlyRevenue,
+    getLastMonthRevenue,
     getTodayUsers,
     getMonthlyUsers,
     getLastMonthUsers,
@@ -61,6 +62,7 @@ const getDashboardService = async () => {
         totalRevenue,
         todayRevenue,
         monthlyRevenue,
+        lastMonthRevenue,
 
         todayUsers,
         monthlyUsers,
@@ -87,6 +89,7 @@ const getDashboardService = async () => {
         getTotalRevenue(),
         getTodayRevenue(),
         getMonthlyRevenue(),
+        getLastMonthRevenue(),
 
         getTodayUsers(),
         getMonthlyUsers(),
@@ -115,6 +118,16 @@ const getDashboardService = async () => {
         monthlySignupsGrowth = 100.0;
     }
 
+    // Calculate revenue growth % (this month vs last month)
+    let revenueGrowth = 0;
+    if (lastMonthRevenue > 0) {
+        revenueGrowth = parseFloat(
+            (((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100).toFixed(1)
+        );
+    } else if (monthlyRevenue > 0) {
+        revenueGrowth = 100.0;
+    }
+
     return {
         cards: {
             users: {
@@ -132,6 +145,8 @@ const getDashboardService = async () => {
                 total: totalRevenue,
                 today: todayRevenue,
                 monthly: monthlyRevenue,
+                lastMonth: lastMonthRevenue,
+                revenueGrowth: revenueGrowth,
                 revenueCurrency: "INR",
             },
 
