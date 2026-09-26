@@ -620,7 +620,7 @@ const getSubscriptionReport = async (query = {}) => {
 // Payment Report: Payments Table + Stats
 // ======================================
 
-const getPaymentReport = async ({ page = 1, limit = 15, status, startDate, endDate, month, year } = {}) => {
+const getPaymentReport = async ({ page = 1, limit = 15, status, startDate, endDate, month, year, all } = {}) => {
   const filter = {};
   if (status) filter.status = status;
 
@@ -640,12 +640,17 @@ const getPaymentReport = async ({ page = 1, limit = 15, status, startDate, endDa
     if (e) filter.paidAt.$lte = new Date(e);
   }
 
-  const payments = await Payment.find(filter)
+  const queryChain = Payment.find(filter)
     .sort({ paidAt: -1, createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(Number(limit))
     .populate("userId", "fullName email")
     .lean();
+
+  const isAll = all === true || all === 'true' || Number(limit) === 0 || limit === 'all';
+  if (!isAll && Number(limit) > 0) {
+    queryChain.skip((Number(page) - 1) * Number(limit)).limit(Number(limit));
+  }
+
+  const payments = await queryChain;
 
   const total = await Payment.countDocuments(filter);
 
@@ -673,15 +678,20 @@ const getPaymentReport = async ({ page = 1, limit = 15, status, startDate, endDa
       user: p.userId?.fullName || "Unknown",
       email: p.userId?.email || "",
       amount: p.amount,
-      currency: p.currency,
+      currency: p.currency || "INR",
       plan: p.plan,
       provider: p.provider,
       status: p.status,
+      razorpayPaymentId: p.razorpayPaymentId || "—",
+      razorpayOrderId: p.razorpayOrderId || "—",
+      originalAmount: p.originalAmount || p.amount,
+      discountAmount: p.discountAmount || 0,
+      couponCode: p.couponCode || "—",
       paidAt: p.paidAt || p.createdAt,
     })),
     total,
-    page: Number(page),
-    totalPages: Math.ceil(total / limit),
+    page: isAll ? 1 : Number(page),
+    totalPages: isAll ? 1 : Math.ceil(total / (Number(limit) || 15)),
     stats,
   };
 };

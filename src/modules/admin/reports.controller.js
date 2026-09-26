@@ -50,8 +50,8 @@ const getSubscriptionReportCtrl = async (req, res) => {
 // GET /api/v1/admin/reports/payments?page=1&limit=15&status=success&startDate=&endDate=&month=&year=
 const getPaymentReportCtrl = async (req, res) => {
   try {
-    const { page, limit, status, startDate, endDate, month, year } = req.query;
-    const data = await getPaymentReport({ page, limit, status, startDate, endDate, month, year });
+    const { page, limit, status, startDate, endDate, month, year, all } = req.query;
+    const data = await getPaymentReport({ page, limit, status, startDate, endDate, month, year, all });
     return res.status(200).json({ success: true, message: "Payment report fetched.", data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
