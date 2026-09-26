@@ -646,6 +646,61 @@ const updateSystemSettingsCtrl = async (req, res) => {
   }
 };
 
+const testPaymentGatewayCtrl = async (req, res) => {
+  try {
+    const { provider = 'razorpay', keyId, keySecret } = req.body;
+    const Razorpay = require("razorpay");
+    const { getRazorpayCredentials } = require("../payment/razorpay");
+
+    if (provider === "razorpay") {
+      const creds = await getRazorpayCredentials();
+      const activeKeyId = keyId?.trim() || creds.key_id;
+      const activeKeySecret = keySecret?.trim() || creds.key_secret;
+
+      if (!activeKeyId || !activeKeySecret || activeKeyId === "dummy_key") {
+        return res.status(400).json({
+          success: false,
+          message: "Razorpay Key ID and Key Secret are required to test connection.",
+        });
+      }
+
+      const client = new Razorpay({
+        key_id: activeKeyId,
+        key_secret: activeKeySecret,
+      });
+
+      // Attempt to list orders (limit 1) to verify auth
+      await client.orders.all({ count: 1 });
+
+      const envMode = activeKeyId.startsWith("rzp_live") ? "Live (Production)" : "Test (Sandbox)";
+
+      return res.status(200).json({
+        success: true,
+        message: `Razorpay connection verified successfully in ${envMode} mode!`,
+        mode: activeKeyId.startsWith("rzp_live") ? "live" : "test",
+      });
+    }
+
+    if (provider === "stripe") {
+      return res.status(200).json({
+        success: true,
+        message: "Stripe configuration saved.",
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: `Unsupported provider '${provider}'.`,
+    });
+  } catch (error) {
+    const errMsg = error.error?.description || error.message || "Failed to connect to payment gateway.";
+    return res.status(400).json({
+      success: false,
+      message: `Connection failed: ${errMsg}`,
+    });
+  }
+};
+
 const getSegmentAudienceCountCtrl = async (req, res) => {
   try {
     const { segment = 'all', email = '' } = req.query;
@@ -1000,6 +1055,7 @@ module.exports = {
       updatePlanLimits,
       getSystemSettingsCtrl,
       updateSystemSettingsCtrl,
+      testPaymentGatewayCtrl,
       getSegmentAudienceCountCtrl,
       sendAdminBroadcastCtrl,
       getAdminCampaignsCtrl,

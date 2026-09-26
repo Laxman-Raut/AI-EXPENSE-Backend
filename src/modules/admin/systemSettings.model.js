@@ -54,6 +54,54 @@ const systemSettingsSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    paymentGateway: {
+      provider: {
+        type: String,
+        enum: ["razorpay", "stripe"],
+        default: "razorpay",
+      },
+      environment: {
+        type: String,
+        enum: ["test", "live"],
+        default: "test",
+      },
+      razorpay: {
+        enabled: {
+          type: Boolean,
+          default: true,
+        },
+        keyId: {
+          type: String,
+          default: "",
+        },
+        keySecret: {
+          type: String,
+          default: "",
+        },
+        webhookSecret: {
+          type: String,
+          default: "",
+        },
+      },
+      stripe: {
+        enabled: {
+          type: Boolean,
+          default: false,
+        },
+        publishableKey: {
+          type: String,
+          default: "",
+        },
+        secretKey: {
+          type: String,
+          default: "",
+        },
+        webhookSecret: {
+          type: String,
+          default: "",
+        },
+      },
+    },
   },
   {
     timestamps: true,

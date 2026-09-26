@@ -27,6 +27,7 @@ const {
    updatePlanLimits,
    getSystemSettingsCtrl,
    updateSystemSettingsCtrl,
+   testPaymentGatewayCtrl,
    getSegmentAudienceCountCtrl,
    sendAdminBroadcastCtrl,
    getAdminCampaignsCtrl,
@@ -90,6 +91,13 @@ router.put(
   authenticate,
   requireAdmin,
   updateSystemSettingsCtrl
+);
+
+router.post(
+  "/settings/test-payment",
+  authenticate,
+  requireAdmin,
+  testPaymentGatewayCtrl
 );
 
 

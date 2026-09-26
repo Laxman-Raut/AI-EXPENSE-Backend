@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const Payment = require("./model");
-const razorpay = require("./razorpay");
+const { getRazorpayCredentials, getRazorpayInstance } = require("./razorpay");
 const User = require("../auth/model");
 const Plan = require("../plan/model");
 const SubscriptionHistory = require("../subscription-history/model");
@@ -74,8 +74,11 @@ const createOrder = async (userId, plan, couponCode = null) => {
   // 3. Compute integer paise for Razorpay API (Rupees * 100)
   const razorpayAmountPaise = Math.round(finalINR * 100);
 
+  const rzpCreds = await getRazorpayCredentials();
+  const razorpayClient = await getRazorpayInstance();
+
   // Razorpay API expects amount in subunit/paise (Rupees * 100)
-  const order = await razorpay.orders.create({
+  const order = await razorpayClient.orders.create({
     amount: razorpayAmountPaise,
     currency: "INR",
     receipt: `receipt_${Date.now()}`,
@@ -105,6 +108,7 @@ const createOrder = async (userId, plan, couponCode = null) => {
   return {
     order,
     payment,
+    keyId: rzpCreds.key_id,
   };
 };
 
@@ -118,8 +122,10 @@ const verifyPayment = async ({
 }) => {
   const body = razorpay_order_id + "|" + razorpay_payment_id;
 
+  const rzpCreds = await getRazorpayCredentials();
+
   const expectedSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .createHmac("sha256", rzpCreds.key_secret)
     .update(body)
     .digest("hex");
 

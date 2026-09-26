@@ -1906,6 +1906,30 @@ const getSystemSettingsRepo = async () => {
     doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
     doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
     doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
+
+    // Payment Gateway configuration (pre-populating from .env if empty in DB)
+    const envKeyId = process.env.RAZORPAY_KEY_ID || process.env["Key ID (Test)"] || "";
+    const envKeySecret = process.env.RAZORPAY_KEY_SECRET || process.env["Key Secret (Test)"] || "";
+    const dbGateway = settings.paymentGateway || {};
+    const dbRzp = dbGateway.razorpay || {};
+    const dbStripe = dbGateway.stripe || {};
+
+    doc.paymentGateway = {
+        provider: dbGateway.provider || "razorpay",
+        environment: dbGateway.environment || (envKeyId.startsWith("rzp_live") ? "live" : "test"),
+        razorpay: {
+            enabled: dbRzp.enabled ?? true,
+            keyId: dbRzp.keyId || envKeyId,
+            keySecret: dbRzp.keySecret || envKeySecret,
+            webhookSecret: dbRzp.webhookSecret || "",
+        },
+        stripe: {
+            enabled: dbStripe.enabled ?? false,
+            publishableKey: dbStripe.publishableKey || "",
+            secretKey: dbStripe.secretKey || "",
+            webhookSecret: dbStripe.webhookSecret || "",
+        },
+    };
     return doc;
 };
 
@@ -1936,14 +1960,33 @@ const updateSystemSettingsRepo = async (updateData) => {
     if (updateData.autoBackup !== undefined) settings.autoBackup = updateData.autoBackup;
     if (updateData.emailNotifications !== undefined) settings.emailNotifications = updateData.emailNotifications;
     if (updateData.smsNotifications !== undefined) settings.smsNotifications = updateData.smsNotifications;
+
+    // Payment Gateway updates
+    if (updateData.paymentGateway !== undefined) {
+        if (!settings.paymentGateway) settings.paymentGateway = {};
+        if (updateData.paymentGateway.provider !== undefined) {
+            settings.paymentGateway.provider = updateData.paymentGateway.provider;
+        }
+        if (updateData.paymentGateway.environment !== undefined) {
+            settings.paymentGateway.environment = updateData.paymentGateway.environment;
+        }
+        if (updateData.paymentGateway.razorpay !== undefined) {
+            settings.paymentGateway.razorpay = {
+                ...(settings.paymentGateway.razorpay || {}),
+                ...updateData.paymentGateway.razorpay,
+            };
+        }
+        if (updateData.paymentGateway.stripe !== undefined) {
+            settings.paymentGateway.stripe = {
+                ...(settings.paymentGateway.stripe || {}),
+                ...updateData.paymentGateway.stripe,
+            };
+        }
+    }
+
     await settings.save();
     
-    const doc = settings.toObject();
-    doc.currency = settings.currency || "INR";
-    doc.aiReceiptScanner = settings.aiFeatures?.enableReceiptScanner ?? true;
-    doc.voiceTransactionScanner = settings.aiFeatures?.enableVoiceScanner ?? true;
-    doc.aiChatbotAdvisor = settings.aiFeatures?.enableChatbot ?? true;
-    return doc;
+    return await getSystemSettingsRepo();
 };
 
 const buildSegmentQuery = (segment, specificEmail) => {
