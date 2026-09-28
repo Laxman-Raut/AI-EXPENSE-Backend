@@ -84,16 +84,25 @@ const executeCampaignDispatch = async (campaign) => {
   }
 };
 
+// Re-entrancy guard to prevent overlapping execution runs
+let isCheckingCampaigns = false;
+
 // Scheduled Runner for Daily & Specific Date Campaigns
 const checkScheduledCampaigns = async () => {
+  if (isCheckingCampaigns) {
+    return;
+  }
+  isCheckingCampaigns = true;
+
   try {
     const now = new Date();
     const currentHour = String(now.getHours()).padStart(2, "0");
     const currentMin = String(now.getMinutes()).padStart(2, "0");
     const currentTime = `${currentHour}:${currentMin}`; // e.g. "14:00"
-    const todayDateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
     // 1. Process Daily Recurring Campaigns
+    // Find all active daily campaigns due at this exact minute
     const dueDailyCampaigns = await AdminNotificationCampaign.find({
       status: "active",
       scheduleType: "daily",
@@ -102,15 +111,34 @@ const checkScheduledCampaigns = async () => {
     });
 
     for (const campaign of dueDailyCampaigns) {
-      console.log(`[Scheduled Campaign] Executing daily recurring campaign "${campaign.title}" at ${currentTime}...`);
-      const count = await executeCampaignDispatch(campaign);
+      // ATOMIC CLAIM: Update lastRunDate immediately BEFORE dispatching
+      // This guarantees that any subsequent tick in the same minute will skip this campaign!
+      const claimedCampaign = await AdminNotificationCampaign.findOneAndUpdate(
+        {
+          _id: campaign._id,
+          lastRunDate: { $ne: todayDateStr },
+        },
+        {
+          $set: {
+            lastRunDate: todayDateStr,
+            lastRunAt: now,
+          },
+        },
+        { new: true }
+      );
 
-      campaign.lastRunAt = now;
-      campaign.lastRunDate = todayDateStr;
-      campaign.recipientCount = count;
-      await campaign.save();
+      if (!claimedCampaign) {
+        // Already claimed by a concurrent worker
+        continue;
+      }
 
-      console.log(`[Scheduled Campaign] ✅ Daily campaign "${campaign.title}" completed. Sent to ${count} users.`);
+      console.log(`[Scheduled Campaign] Executing daily recurring campaign "${claimedCampaign.title}" at ${currentTime}...`);
+      const count = await executeCampaignDispatch(claimedCampaign);
+
+      claimedCampaign.recipientCount = count;
+      await claimedCampaign.save();
+
+      console.log(`[Scheduled Campaign] ✅ Daily campaign "${claimedCampaign.title}" completed. Sent to ${count} users.`);
     }
 
     // 2. Process Specific Date One-Time Campaigns
@@ -121,66 +149,47 @@ const checkScheduledCampaigns = async () => {
     });
 
     for (const campaign of dueSpecificCampaigns) {
-      console.log(`[Scheduled Campaign] Executing specific date campaign "${campaign.title}"...`);
-      const count = await executeCampaignDispatch(campaign);
+      // ATOMIC CLAIM: Mark as completed immediately to prevent re-entrancy
+      const claimedCampaign = await AdminNotificationCampaign.findOneAndUpdate(
+        {
+          _id: campaign._id,
+          status: "scheduled",
+        },
+        {
+          $set: {
+            status: "completed",
+            lastRunDate: todayDateStr,
+            lastRunAt: now,
+          },
+        },
+        { new: true }
+      );
 
-      campaign.status = "completed";
-      campaign.lastRunAt = now;
-      campaign.lastRunDate = todayDateStr;
-      campaign.recipientCount = count;
-      await campaign.save();
+      if (!claimedCampaign) {
+        continue;
+      }
 
-      console.log(`[Scheduled Campaign] ✅ One-time scheduled campaign "${campaign.title}" completed. Sent to ${count} users.`);
+      console.log(`[Scheduled Campaign] Executing specific date campaign "${claimedCampaign.title}"...`);
+      const count = await executeCampaignDispatch(claimedCampaign);
+
+      claimedCampaign.recipientCount = count;
+      await claimedCampaign.save();
+
+      console.log(`[Scheduled Campaign] ✅ One-time scheduled campaign "${claimedCampaign.title}" completed. Sent to ${count} users.`);
     }
   } catch (err) {
     console.error("[Scheduled Campaign] Error checking scheduled campaigns:", err.message);
+  } finally {
+    isCheckingCampaigns = false;
   }
 };
 
 const startReminderScheduler = () => {
-  console.log("[Notification Scheduler] Daily inactivity & scheduled campaign runner started.");
+  console.log("[Notification Scheduler] Scheduled campaign runner started (Admin dashboard controlled).");
 
-  // Check every 30 seconds
+  // Check scheduled campaigns every 30 seconds
   setInterval(async () => {
-    // Check scheduled campaigns
     await checkScheduledCampaigns();
-
-    // Inactivity check at 10 AM
-    try {
-      const now = new Date();
-      const currentDateString = now.toDateString();
-
-      if (now.getHours() >= 10 && lastProcessedDateString !== currentDateString) {
-        lastProcessedDateString = currentDateString;
-        console.log(`[Notification Scheduler] Running daily 10 AM inactivity check for ${currentDateString}...`);
-
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-        const idleUsers = await User.find({
-          $or: [
-            { lastVisitedAt: { $lt: todayStart } },
-            { lastVisitedAt: { $exists: false } },
-          ],
-        });
-
-        console.log(`[Notification Scheduler] Found ${idleUsers.length} idle users who haven't visited today.`);
-
-        for (const user of idleUsers) {
-          try {
-            await createNotification({
-              user: user._id,
-              title: "Daily Inactivity Reminder",
-              body: "You haven't visited the app today yet! Track your expenses to keep your budget in check.",
-              type: "reminder",
-            });
-          } catch (err) {
-            console.error(`[Notification Scheduler] Failed to send reminder to user ${user._id}:`, err);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("[Notification Scheduler] Error in inactivity reminder loop run:", err);
-    }
   }, 30000); // 30 seconds interval
 };
 
