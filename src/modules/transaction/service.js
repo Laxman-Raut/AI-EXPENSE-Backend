@@ -46,17 +46,44 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
       const prevPercent = (prevExpense / budgetINR) * 100;
       const newPercent = (totalExpense / budgetINR) * 100;
 
-      // Check if we crossed any 10% threshold (10, 20, 30, ..., 100)
-      for (let threshold = 10; threshold <= 100; threshold += 10) {
+      // Milestone and warning thresholds: 50%, 80%, 100%
+      const thresholds = [50, 80, 100];
+      for (const threshold of thresholds) {
         if (prevPercent < threshold && newPercent >= threshold) {
+          const isFull = threshold === 100;
           await createNotification({
             user: userId,
-            title: "Budget Burn Warning",
-            body: `You have spent ${threshold}% of your monthly budget.`,
+            title: isFull ? "⚠️ Monthly Budget Reached" : `📊 Budget Alert: ${threshold}% Spent`,
+            body: isFull
+              ? `You have reached 100% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`
+              : `You have spent ${threshold}% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`,
             type: "budget",
-            data: { threshold, totalExpense, monthlyBudget: budgetINR }
+            data: {
+              screen: "Budget",
+              threshold,
+              totalExpense: Math.round(totalExpense),
+              monthlyBudget: Math.round(budgetINR),
+            },
           });
         }
+      }
+
+      // If budget is exceeded (> 100%)
+      if (prevPercent <= 100 && newPercent > 100) {
+        const excess = Math.round(totalExpense - budgetINR);
+        await createNotification({
+          user: userId,
+          title: "🚨 Monthly Budget Exceeded!",
+          body: `Your spending this month has exceeded your monthly budget by ₹${excess}. Total spent: ₹${Math.round(totalExpense)} / ₹${Math.round(budgetINR)}.`,
+          type: "budget",
+          data: {
+            screen: "Budget",
+            threshold: 100,
+            excess,
+            totalExpense: Math.round(totalExpense),
+            monthlyBudget: Math.round(budgetINR),
+          },
+        });
       }
     }
 
@@ -78,21 +105,33 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
       if (prevCategoryPercent < 80 && newCategoryPercent >= 80 && newCategoryPercent < 100) {
         await createNotification({
           user: userId,
-          title: "Category Budget Warning",
-          body: `You have spent 80% of your budget limit of ${categoryBudgetLimit} for category "${category}".`,
+          title: `⚠️ ${category} Budget Warning`,
+          body: `You have spent 80% of your budget for "${category}" (₹${Math.round(totalCategoryExpense)} of ₹${Math.round(categoryBudgetLimit)}).`,
           type: "budget",
-          data: { category, totalExpense: totalCategoryExpense, budgetLimit: categoryBudgetLimit }
+          data: {
+            screen: "Budget",
+            category,
+            totalExpense: Math.round(totalCategoryExpense),
+            budgetLimit: Math.round(categoryBudgetLimit),
+          },
         });
       }
 
       // Exceeded when crossing 100%
       if (prevCategoryPercent < 100 && newCategoryPercent >= 100) {
+        const excess = Math.round(totalCategoryExpense - categoryBudgetLimit);
         await createNotification({
           user: userId,
-          title: "Category Budget Exceeded",
-          body: `Your expenses for category "${category}" have exceeded your budget limit of ${categoryBudgetLimit}.`,
+          title: `🚨 ${category} Budget Exceeded!`,
+          body: `Your expenses for "${category}" have exceeded your budget by ₹${excess}. Total spent: ₹${Math.round(totalCategoryExpense)} / ₹${Math.round(categoryBudgetLimit)}.`,
           type: "budget",
-          data: { category, totalExpense: totalCategoryExpense, budgetLimit: categoryBudgetLimit }
+          data: {
+            screen: "Budget",
+            category,
+            excess,
+            totalExpense: Math.round(totalCategoryExpense),
+            budgetLimit: Math.round(categoryBudgetLimit),
+          },
         });
       }
     }
@@ -120,18 +159,10 @@ const createTransaction = async (transactionData, userId) => {
     transaction = await transaction.populate("bankAccount");
   }
 
-  // Run push notifications & budget threshold checks asynchronously in background
+  // Run budget threshold checks asynchronously in background
+  // (Noisy self-action "New Expense Added" confirmation is omitted so user only gets actionable alerts)
   setImmediate(async () => {
     try {
-      const typeLabel = transaction.type === "income" ? "Income" : "Expense";
-      await createNotification({
-        user: userId,
-        title: `New ${typeLabel} Added`,
-        body: `You successfully added ${typeLabel.toLowerCase()} of ${transaction.amount} for ${transaction.category}.`,
-        type: transaction.type === "income" ? "income" : "expense",
-        data: { transactionId: transaction._id }
-      });
-
       await checkBudgetLimitsAndNotify(
         userId,
         transaction.category,
@@ -139,7 +170,7 @@ const createTransaction = async (transactionData, userId) => {
         transaction.type === "expense"
       );
     } catch (notificationError) {
-      console.error("Failed to trigger transaction/budget notification:", notificationError);
+      console.error("Failed to trigger budget notification:", notificationError);
     }
   });
 

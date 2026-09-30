@@ -91,6 +91,11 @@ const recurringTransactionSchema = new mongoose.Schema(
       default: null,
     },
 
+    lastReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["active", "paused", "completed"],
