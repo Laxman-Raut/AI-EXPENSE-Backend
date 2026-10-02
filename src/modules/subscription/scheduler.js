@@ -46,6 +46,9 @@ const checkAndExpireSubscriptions = async () => {
         title: "Subscription Expired",
         body: "Your Pro subscription has expired. Renew now to continue enjoying premium features!",
         type: "system",
+        data: {
+          screen: "Subscription",
+        },
       });
 
       console.log(`[Subscription Scheduler] Expired subscription for user: ${user.fullName} (${user.email})`);
@@ -76,6 +79,9 @@ const checkAndExpireSubscriptions = async () => {
           title: "Subscription Expiring Soon",
           body: `Your Pro subscription is expiring soon on ${dateString}. Renew now to keep your premium access active!`,
           type: "reminder",
+          data: {
+            screen: "Subscription",
+          },
         });
 
         console.log(`[Subscription Scheduler] Notified user of upcoming subscription expiry: ${user.fullName}`);
