@@ -99,8 +99,10 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
         notification: {
           channelId: "expense-tracker",
           priority: "high",
+          sound: "default",
           defaultSound: true,
           defaultVibrateTimings: true,
+          visibility: "public",
         },
       },
     };
@@ -158,8 +160,10 @@ const sendBulkPushNotifications = async (notifications) => {
       notification: {
         channelId: "expense-tracker",
         priority: "high",
+        sound: "default",
         defaultSound: true,
         defaultVibrateTimings: true,
+        visibility: "public",
       },
     },
   }));
