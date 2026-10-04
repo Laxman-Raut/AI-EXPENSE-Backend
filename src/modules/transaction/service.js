@@ -46,49 +46,28 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
     if (budgetINR > 0) {
       const currentPercent = (totalExpense / budgetINR) * 100;
 
-      // Milestone and warning thresholds: 50%, 80%, 100%
-      const thresholds = [50, 80, 100];
+      // Find ALL already-sent budget thresholds for this month to avoid duplicates
+      const alreadySentNotifications = await Notification.find({
+        user: userId,
+        type: "budget",
+        "data.threshold": { $exists: true },
+        "data.category": { $exists: false },
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+      }).select("data.threshold").lean();
+
+      const alreadySentThresholds = new Set(
+        alreadySentNotifications.map(n => String(n.data?.threshold))
+      );
+
+      // Determine the SINGLE highest applicable threshold that hasn't been sent yet
+      // Check from highest to lowest — only send ONE notification per transaction
+      const thresholds = ["exceeded", 100, 80, 50];
+      let sentOne = false;
+
       for (const threshold of thresholds) {
-        if (currentPercent >= threshold) {
-          // Check if notification for this milestone was already sent in the current month
-          const alreadySent = await Notification.findOne({
-            user: userId,
-            type: "budget",
-            "data.threshold": threshold,
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-          });
+        if (sentOne) break;
 
-          if (!alreadySent) {
-            const isFull = threshold === 100;
-            await createNotification({
-              user: userId,
-              title: isFull ? "⚠️ Monthly Budget Reached" : `📊 Budget Alert: ${threshold}% Spent`,
-              body: isFull
-                ? `You have reached 100% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`
-                : `You have spent ${threshold}% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`,
-              type: "budget",
-              data: {
-                screen: "Budget",
-                threshold,
-                totalExpense: Math.round(totalExpense),
-                monthlyBudget: Math.round(budgetINR),
-              },
-            });
-            console.log(`[Budget] Sent ${threshold}% budget alert for user ${userId}`);
-          }
-        }
-      }
-
-      // If budget is exceeded (> 100%)
-      if (currentPercent > 100) {
-        const alreadySentExceeded = await Notification.findOne({
-          user: userId,
-          type: "budget",
-          "data.threshold": "exceeded",
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-        });
-
-        if (!alreadySentExceeded) {
+        if (threshold === "exceeded" && currentPercent > 100 && !alreadySentThresholds.has("exceeded")) {
           const excess = Math.round(totalExpense - budgetINR);
           await createNotification({
             user: userId,
@@ -104,6 +83,25 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             },
           });
           console.log(`[Budget] Sent budget exceeded alert for user ${userId}`);
+          sentOne = true;
+        } else if (typeof threshold === "number" && currentPercent >= threshold && !alreadySentThresholds.has(String(threshold))) {
+          const isFull = threshold === 100;
+          await createNotification({
+            user: userId,
+            title: isFull ? "⚠️ Monthly Budget Reached" : `📊 Budget Alert: ${threshold}% Spent`,
+            body: isFull
+              ? `You have reached 100% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`
+              : `You have spent ${threshold}% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`,
+            type: "budget",
+            data: {
+              screen: "Budget",
+              threshold,
+              totalExpense: Math.round(totalExpense),
+              monthlyBudget: Math.round(budgetINR),
+            },
+          });
+          console.log(`[Budget] Sent ${threshold}% budget alert for user ${userId}`);
+          sentOne = true;
         }
       }
     }

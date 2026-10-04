@@ -1998,12 +1998,25 @@ const buildSegmentQuery = (segment, specificEmail) => {
             return {
                 $or: [
                     { "subscription.plan": { $exists: false } },
+                    { "subscription.plan": null },
+                    { "subscription.plan": "" },
                     { "subscription.plan": "free" },
                     { "subscription.status": { $ne: "active" } }
                 ]
             };
         case 'pro':
-            return { "subscription.plan": "pro", "subscription.status": "active" };
+            return {
+                $and: [
+                    { "subscription.status": "active" },
+                    {
+                        $or: [
+                            { "subscription.plan": "pro" },
+                            { "subscription.plan": "premium" },
+                            { "subscription.plan": { $regex: /pro|premium|monthly|yearly|lifetime/i } }
+                        ]
+                    }
+                ]
+            };
         case 'expired':
             return { "subscription.status": { $in: ["expired", "cancelled"] } };
         case 'inactive':
