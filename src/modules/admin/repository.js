@@ -2094,6 +2094,8 @@ const sendAdminBroadcastRepo = async ({
     await Notification.insertMany(notificationsToInsert);
 
     // Send FCM Push Notifications to all target users
+    let pushResult = { successCount: 0, failureCount: 0, configured: false };
+    let pushTokenCount = 0;
     try {
         const pushPayloads = targetUsers
             .filter(u => u.fcmToken && u.fcmToken.trim() !== "")
@@ -2104,8 +2106,9 @@ const sendAdminBroadcastRepo = async ({
                 data: { type: type || "system", segment: targetSegment, sentByAdmin: "true" },
             }));
 
+        pushTokenCount = pushPayloads.length;
         if (pushPayloads.length > 0) {
-            const pushResult = await sendBulkPushNotifications(pushPayloads);
+            pushResult = await sendBulkPushNotifications(pushPayloads);
             console.log(`[Admin Broadcast] FCM push: ${pushResult.successCount} sent, ${pushResult.failureCount} failed.`);
         }
     } catch (pushErr) {
@@ -2131,6 +2134,12 @@ const sendAdminBroadcastRepo = async ({
 
     return {
         recipientCount: targetUsers.length,
+        pushResult: {
+            tokenCount: pushTokenCount,
+            successCount: pushResult.successCount,
+            failureCount: pushResult.failureCount,
+            configured: pushResult.configured,
+        },
         campaign
     };
 };
