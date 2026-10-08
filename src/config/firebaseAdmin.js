@@ -72,7 +72,7 @@ initializeFirebaseAdmin();
  * @returns {Promise<string|null>} - Message ID on success, null on failure
  */
 const ANDROID_NOTIFICATION_CHANNEL_ID = "expense-tracker-v2";
-const ANDROID_APP_ALERT_CHANNEL_ID = "expense-app-alerts-v1";
+const ANDROID_APP_ALERT_CHANNEL_ID = ANDROID_NOTIFICATION_CHANNEL_ID;
 
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   if (!isInitialized) {

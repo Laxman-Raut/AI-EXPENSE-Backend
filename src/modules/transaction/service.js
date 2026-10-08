@@ -14,6 +14,7 @@ const Bank = require("../bank/model");
 const User = require("../auth/model");
 const Notification = require("../notification/model");
 const { createNotification } = require("../notification/service");
+const { getPendingBudgetThresholds } = require("./budgetThresholds");
 
 const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) => {
   if (!isExpense) return;
@@ -59,15 +60,8 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
         alreadySentNotifications.map(n => String(n.data?.threshold))
       );
 
-      // Determine the SINGLE highest applicable threshold that hasn't been sent yet
-      // Check from highest to lowest — only send ONE notification per transaction
-      const thresholds = ["exceeded", 100, 80, 50];
-      let sentOne = false;
-
-      for (const threshold of thresholds) {
-        if (sentOne) break;
-
-        if (threshold === "exceeded" && currentPercent > 100 && !alreadySentThresholds.has("exceeded")) {
+      for (const threshold of getPendingBudgetThresholds(currentPercent, alreadySentThresholds)) {
+        if (threshold === "exceeded") {
           const excess = Math.round(totalExpense - budgetINR);
           await createNotification({
             user: userId,
@@ -83,8 +77,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             },
           });
           console.log(`[Budget] Sent budget exceeded alert for user ${userId}`);
-          sentOne = true;
-        } else if (typeof threshold === "number" && currentPercent >= threshold && !alreadySentThresholds.has(String(threshold))) {
+        } else {
           const isFull = threshold === 100;
           await createNotification({
             user: userId,
@@ -101,7 +94,6 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             },
           });
           console.log(`[Budget] Sent ${threshold}% budget alert for user ${userId}`);
-          sentOne = true;
         }
       }
     }
@@ -145,8 +137,34 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
           }
         }
 
-        // Exceeded when crossing 100%
         if (categoryPercent >= 100) {
+          const alreadySentCat100 = await Notification.findOne({
+            user: userId,
+            type: "budget",
+            "data.category": category,
+            "data.threshold": 100,
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+          });
+
+          if (!alreadySentCat100) {
+            await createNotification({
+              user: userId,
+              title: `${category} Budget Reached`,
+              body: `You have reached 100% of your budget for "${category}" (${Math.round(totalCategoryExpense)} of ${Math.round(categoryBudgetLimit)}).`,
+              type: "budget",
+              data: {
+                screen: "Budget",
+                category,
+                threshold: 100,
+                totalExpense: Math.round(totalCategoryExpense),
+                budgetLimit: Math.round(categoryBudgetLimit),
+              },
+            });
+          }
+        }
+
+        // Exceeded when crossing 100%
+        if (categoryPercent > 100) {
           const alreadySentCatExceeded = await Notification.findOne({
             user: userId,
             type: "budget",
