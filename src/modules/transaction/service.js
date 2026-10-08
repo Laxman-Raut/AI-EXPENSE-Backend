@@ -14,9 +14,32 @@ const Bank = require("../bank/model");
 const User = require("../auth/model");
 const Notification = require("../notification/model");
 const { createNotification } = require("../notification/service");
-const { getPendingBudgetThresholds } = require("./budgetThresholds");
+const {
+  getPendingBudgetThresholds,
+  getSentThresholdsForBudget,
+} = require("./budgetThresholds");
 
-const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) => {
+const getBudgetKey = (amount) => Number(amount).toFixed(2);
+
+const budgetSnapshotMatchQuery = (budgetKey, legacyField, budgetAmount) => ({
+  $or: [
+    { "data.budgetKey": budgetKey },
+    {
+      $and: [
+        { "data.budgetKey": { $exists: false } },
+        { [`data.${legacyField}`]: Math.round(budgetAmount) },
+      ],
+    },
+  ],
+});
+
+const checkBudgetLimitsAndNotify = async (
+  userId,
+  category,
+  amount,
+  isExpense,
+  { monthlyBudgetUpdated = false, categoryBudgetUpdated = false, categoryOnly = false } = {},
+) => {
   if (!isExpense) return;
   try {
     const user = await User.findById(userId);
@@ -44,8 +67,9 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
       ? user.monthlyBudgetINR
       : (user.monthlyBudget || 0);
 
-    if (budgetINR > 0) {
+    if (!categoryOnly && budgetINR > 0) {
       const currentPercent = (totalExpense / budgetINR) * 100;
+      const budgetKey = getBudgetKey(budgetINR);
 
       // Find ALL already-sent budget thresholds for this month to avoid duplicates
       const alreadySentNotifications = await Notification.find({
@@ -54,13 +78,18 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
         "data.threshold": { $exists: true },
         "data.category": { $exists: false },
         createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-      }).select("data.threshold").lean();
+      }).select("data.threshold data.monthlyBudget data.budgetKey").lean();
 
-      const alreadySentThresholds = new Set(
-        alreadySentNotifications.map(n => String(n.data?.threshold))
+      const alreadySentThresholds = getSentThresholdsForBudget(
+        alreadySentNotifications,
+        budgetKey,
+        budgetINR,
+        "monthlyBudget",
       );
 
-      for (const threshold of getPendingBudgetThresholds(currentPercent, alreadySentThresholds)) {
+      for (const threshold of getPendingBudgetThresholds(currentPercent, alreadySentThresholds, {
+        budgetUpdated: monthlyBudgetUpdated,
+      })) {
         if (threshold === "exceeded") {
           const excess = Math.round(totalExpense - budgetINR);
           await createNotification({
@@ -74,6 +103,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
               excess,
               totalExpense: Math.round(totalExpense),
               monthlyBudget: Math.round(budgetINR),
+              budgetKey,
             },
           });
           console.log(`[Budget] Sent budget exceeded alert for user ${userId}`);
@@ -91,6 +121,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
               threshold,
               totalExpense: Math.round(totalExpense),
               monthlyBudget: Math.round(budgetINR),
+              budgetKey,
             },
           });
           console.log(`[Budget] Sent ${threshold}% budget alert for user ${userId}`);
@@ -108,15 +139,17 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
         const categoryExpenses = monthlyExpenses.filter(item => item.category === category);
         const totalCategoryExpense = categoryExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
         const categoryPercent = (totalCategoryExpense / categoryBudgetLimit) * 100;
+        const categoryBudgetKey = getBudgetKey(categoryBudgetLimit);
 
         // Warning when crossing 80%
-        if (categoryPercent >= 80 && categoryPercent < 100) {
+        if (categoryPercent >= 80 && (categoryPercent < 100 || categoryBudgetUpdated)) {
           const alreadySentCat80 = await Notification.findOne({
             user: userId,
             type: "budget",
             "data.category": category,
             "data.threshold": 80,
             createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
           });
 
           if (!alreadySentCat80) {
@@ -131,6 +164,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
                 threshold: 80,
                 totalExpense: Math.round(totalCategoryExpense),
                 budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
               },
             });
             console.log(`[Budget] Sent 80% category alert for ${category} to user ${userId}`);
@@ -144,6 +178,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             "data.category": category,
             "data.threshold": 100,
             createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
           });
 
           if (!alreadySentCat100) {
@@ -158,6 +193,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
                 threshold: 100,
                 totalExpense: Math.round(totalCategoryExpense),
                 budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
               },
             });
           }
@@ -171,6 +207,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
             "data.category": category,
             "data.threshold": "exceeded",
             createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
           });
 
           if (!alreadySentCatExceeded) {
@@ -187,6 +224,7 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
                 excess,
                 totalExpense: Math.round(totalCategoryExpense),
                 budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
               },
             });
             console.log(`[Budget] Sent category exceeded alert for ${category} to user ${userId}`);
