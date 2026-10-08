@@ -72,7 +72,6 @@ initializeFirebaseAdmin();
  * @returns {Promise<string|null>} - Message ID on success, null on failure
  */
 const ANDROID_NOTIFICATION_CHANNEL_ID = "expense-tracker-v2";
-const ANDROID_APP_ALERT_CHANNEL_ID = ANDROID_NOTIFICATION_CHANNEL_ID;
 
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   if (!isInitialized) {
@@ -85,10 +84,6 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
 
   try {
     const message = {
-      notification: {
-        title,
-        body,
-      },
       data: {
         ...Object.fromEntries(
           Object.entries(data).map(([k, v]) => [k, String(v)])
@@ -98,14 +93,18 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
       },
       token: fcmToken,
       android: {
+        // Android app alerts are rendered by Notifee so heads-up behavior is consistent
+        // whether the app is foregrounded or backgrounded.
         priority: "high",
-        notification: {
-          channelId: ANDROID_APP_ALERT_CHANNEL_ID,
-          priority: "high",
-          sound: "default",
-          defaultSound: true,
-          defaultVibrateTimings: true,
-          visibility: "public",
+        ttl: 60 * 60 * 1000,
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: {
+          aps: {
+            alert: { title, body },
+            sound: "default",
+          },
         },
       },
     };
