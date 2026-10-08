@@ -23,8 +23,16 @@ test("emits reached and exceeded milestones above 100%, never an 80% alert", () 
 
 test("rechecks all crossed milestones when the budget itself is updated", () => {
   assert.deepEqual(
+    getPendingBudgetThresholds(85, new Set(), { budgetUpdated: true }),
+    [80],
+  );
+  assert.deepEqual(
+    getPendingBudgetThresholds(100, new Set(), { budgetUpdated: true }),
+    [100],
+  );
+  assert.deepEqual(
     getPendingBudgetThresholds(125, new Set(), { budgetUpdated: true }),
-    [80, 100, "exceeded"],
+    [100, "exceeded"],
   );
 });
 

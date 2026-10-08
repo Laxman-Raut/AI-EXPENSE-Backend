@@ -110,9 +110,17 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
       },
     };
 
-    const messageId = await getMessaging().send(message);
-    console.log(`[Firebase Admin] ✅ Push sent to token: ${fcmToken.substring(0, 20)}... | ID: ${messageId}`);
-    return messageId;
+    // Match the verified admin broadcast transport for app-generated alerts.
+    const response = await getMessaging().sendEach([message]);
+    const result = response.responses[0];
+    if (!result?.success) {
+      const sendError = result?.error || new Error("FCM did not accept the message");
+      sendError.code = sendError.code || "messaging/unknown-error";
+      throw sendError;
+    }
+
+    console.log(`[Firebase Admin] ✅ App push sent to token: ${fcmToken.substring(0, 20)}... | ID: ${result.messageId}`);
+    return result.messageId;
   } catch (err) {
     // Handle expired/invalid tokens gracefully
     if (

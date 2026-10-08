@@ -10,7 +10,7 @@ const getPendingBudgetThresholds = (
   }
   if (
     percentage >= 80 &&
-    (percentage < 100 || budgetUpdated) &&
+    percentage < 100 &&
     !sentThresholds.has("80")
   ) {
     pending.push(80);
