@@ -229,6 +229,15 @@ const deleteTransaction = async (id, userId) => {
 
 const syncTransactions = async (userId, transactions = []) => {
   const user = await User.findById(userId);
+  if (
+    !user ||
+    !user.subscription?.plan ||
+    user.subscription.plan === "free" ||
+    user.subscription?.status !== "active"
+  ) {
+    throw new Error("An active paid subscription is required to sync transactions.");
+  }
+
   const results = [];
 
   // Currency snapshots parallel create karo (chunks of 10)
