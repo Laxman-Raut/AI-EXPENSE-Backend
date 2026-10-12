@@ -71,6 +71,8 @@ initializeFirebaseAdmin();
  * @param {object} data - Optional custom data payload
  * @returns {Promise<string|null>} - Message ID on success, null on failure
  */
+const ANDROID_NOTIFICATION_CHANNEL_ID = "expense-tracker-v2";
+
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   if (!isInitialized) {
     return null;
@@ -82,10 +84,6 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
 
   try {
     const message = {
-      notification: {
-        title,
-        body,
-      },
       data: {
         ...Object.fromEntries(
           Object.entries(data).map(([k, v]) => [k, String(v)])
@@ -95,19 +93,33 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
       },
       token: fcmToken,
       android: {
+        // Android app alerts are rendered by Notifee so heads-up behavior is consistent
+        // whether the app is foregrounded or backgrounded.
         priority: "high",
-        notification: {
-          channelId: "expense-tracker",
-          priority: "high",
-          defaultSound: true,
-          defaultVibrateTimings: true,
+        ttl: 60 * 60 * 1000,
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: {
+          aps: {
+            alert: { title, body },
+            sound: "default",
+          },
         },
       },
     };
 
-    const messageId = await getMessaging().send(message);
-    console.log(`[Firebase Admin] ✅ Push sent to token: ${fcmToken.substring(0, 20)}... | ID: ${messageId}`);
-    return messageId;
+    // Match the verified admin broadcast transport for app-generated alerts.
+    const response = await getMessaging().sendEach([message]);
+    const result = response.responses[0];
+    if (!result?.success) {
+      const sendError = result?.error || new Error("FCM did not accept the message");
+      sendError.code = sendError.code || "messaging/unknown-error";
+      throw sendError;
+    }
+
+    console.log(`[Firebase Admin] ✅ App push sent to token: ${fcmToken.substring(0, 20)}... | ID: ${result.messageId}`);
+    return result.messageId;
   } catch (err) {
     // Handle expired/invalid tokens gracefully
     if (
@@ -128,16 +140,20 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
  * @returns {Promise<{successCount: number, failureCount: number}>}
  */
 const sendBulkPushNotifications = async (notifications) => {
-  if (!isInitialized) {
-    return { successCount: 0, failureCount: 0 };
-  }
-
   const validNotifications = notifications.filter(
     (n) => n.fcmToken && n.fcmToken.trim() !== ""
   );
 
   if (validNotifications.length === 0) {
-    return { successCount: 0, failureCount: 0 };
+    return { successCount: 0, failureCount: 0, configured: isInitialized };
+  }
+
+  if (!isInitialized) {
+    return {
+      successCount: 0,
+      failureCount: validNotifications.length,
+      configured: false,
+    };
   }
 
   const messages = validNotifications.map((n) => ({
@@ -156,16 +172,29 @@ const sendBulkPushNotifications = async (notifications) => {
     android: {
       priority: "high",
       notification: {
-        channelId: "expense-tracker",
+        channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
         priority: "high",
+        sound: "default",
         defaultSound: true,
         defaultVibrateTimings: true,
+        visibility: "public",
       },
     },
   }));
 
   try {
-    const response = await getMessaging().sendEach(messages);
+    const response = { successCount: 0, failureCount: 0 };
+    for (let offset = 0; offset < messages.length; offset += 500) {
+      const batch = messages.slice(offset, offset + 500);
+      try {
+        const batchResponse = await getMessaging().sendEach(batch);
+        response.successCount += batchResponse.successCount;
+        response.failureCount += batchResponse.failureCount;
+      } catch (err) {
+        response.failureCount += batch.length;
+        console.error("[Firebase Admin] Bulk push batch error:", err.message);
+      }
+    }
     console.log(
       `[Firebase Admin] ✅ Bulk push: ${response.successCount} sent, ${response.failureCount} failed.`
     );
@@ -175,7 +204,11 @@ const sendBulkPushNotifications = async (notifications) => {
     };
   } catch (err) {
     console.error("[Firebase Admin] ❌ Bulk push error:", err.message);
-    return { successCount: 0, failureCount: validNotifications.length };
+    return {
+      successCount: 0,
+      failureCount: validNotifications.length,
+      configured: true,
+    };
   }
 };
 

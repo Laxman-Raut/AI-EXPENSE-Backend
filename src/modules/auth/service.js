@@ -468,6 +468,28 @@ const updateProfile = async (userId, updateData) => {
     throw new Error("User not found");
   }
 
+  if (updateData.monthlyBudget !== undefined && Number(user.monthlyBudgetINR || user.monthlyBudget) > 0) {
+    setImmediate(() => {
+      const { checkBudgetLimitsAndNotify } = require("../transaction/service");
+      checkBudgetLimitsAndNotify(userId, null, 0, true, { monthlyBudgetUpdated: true });
+    });
+  }
+
+  if (updateData.categoryBudgets !== undefined) {
+    const updatedCategories = Object.keys(updateData.categoryBudgets || {});
+    if (updatedCategories.length > 0) {
+      setImmediate(() => {
+        const { checkBudgetLimitsAndNotify } = require("../transaction/service");
+        Promise.all(updatedCategories.map((category) =>
+          checkBudgetLimitsAndNotify(userId, category, 0, true, {
+            categoryBudgetUpdated: true,
+            categoryOnly: true,
+          })
+        ));
+      });
+    }
+  }
+
   return user;
 };
 

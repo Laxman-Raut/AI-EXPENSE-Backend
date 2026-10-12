@@ -12,17 +12,43 @@ const {
 const Transaction = require("./model");
 const Bank = require("../bank/model");
 const User = require("../auth/model");
+const Notification = require("../notification/model");
 const { createNotification } = require("../notification/service");
+const {
+  getPendingBudgetThresholds,
+  getSentThresholdsForBudget,
+} = require("./budgetThresholds");
 
-const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) => {
+const getBudgetKey = (amount) => Number(amount).toFixed(2);
+
+const budgetSnapshotMatchQuery = (budgetKey, legacyField, budgetAmount) => ({
+  $or: [
+    { "data.budgetKey": budgetKey },
+    {
+      $and: [
+        { "data.budgetKey": { $exists: false } },
+        { [`data.${legacyField}`]: Math.round(budgetAmount) },
+      ],
+    },
+  ],
+});
+
+const checkBudgetLimitsAndNotify = async (
+  userId,
+  category,
+  amount,
+  isExpense,
+  { monthlyBudgetUpdated = false, categoryBudgetUpdated = false, categoryOnly = false } = {},
+) => {
   if (!isExpense) return;
   try {
     const user = await User.findById(userId);
     if (!user) return;
 
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    // Start and end of current month in UTC & local tolerant boundaries
+    const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999));
 
     // Fetch all expenses in the current month
     const monthlyExpenses = await Transaction.find({
@@ -35,65 +61,175 @@ const checkBudgetLimitsAndNotify = async (userId, category, amount, isExpense) =
     });
 
     const totalExpense = monthlyExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
-    const prevExpense = totalExpense - amount;
 
     // 1. Overall Monthly Budget Check
     const budgetINR = (user.monthlyBudgetINR && user.monthlyBudgetINR > 0)
       ? user.monthlyBudgetINR
       : (user.monthlyBudget || 0);
 
-    if (budgetINR > 0) {
-      const prevPercent = (prevExpense / budgetINR) * 100;
-      const newPercent = (totalExpense / budgetINR) * 100;
+    if (!categoryOnly && budgetINR > 0) {
+      const currentPercent = (totalExpense / budgetINR) * 100;
+      const budgetKey = getBudgetKey(budgetINR);
 
-      // Check if we crossed any 10% threshold (10, 20, 30, ..., 100)
-      for (let threshold = 10; threshold <= 100; threshold += 10) {
-        if (prevPercent < threshold && newPercent >= threshold) {
+      // Find ALL already-sent budget thresholds for this month to avoid duplicates
+      const alreadySentNotifications = await Notification.find({
+        user: userId,
+        type: "budget",
+        "data.threshold": { $exists: true },
+        "data.category": { $exists: false },
+        createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+      }).select("data.threshold data.monthlyBudget data.budgetKey").lean();
+
+      const alreadySentThresholds = getSentThresholdsForBudget(
+        alreadySentNotifications,
+        budgetKey,
+        budgetINR,
+        "monthlyBudget",
+      );
+
+      for (const threshold of getPendingBudgetThresholds(currentPercent, alreadySentThresholds, {
+        budgetUpdated: monthlyBudgetUpdated,
+      })) {
+        if (threshold === "exceeded") {
+          const excess = Math.round(totalExpense - budgetINR);
           await createNotification({
             user: userId,
-            title: "Budget Burn Warning",
-            body: `You have spent ${threshold}% of your monthly budget.`,
+            title: "🚨 Monthly Budget Exceeded!",
+            body: `Your spending this month has exceeded your monthly budget by ₹${excess}. Total spent: ₹${Math.round(totalExpense)} / ₹${Math.round(budgetINR)}.`,
             type: "budget",
-            data: { threshold, totalExpense, monthlyBudget: budgetINR }
+            data: {
+              screen: "Budget",
+              threshold: "exceeded",
+              excess,
+              totalExpense: Math.round(totalExpense),
+              monthlyBudget: Math.round(budgetINR),
+              budgetKey,
+            },
           });
+          console.log(`[Budget] Sent budget exceeded alert for user ${userId}`);
+        } else {
+          const isFull = threshold === 100;
+          await createNotification({
+            user: userId,
+            title: isFull ? "⚠️ Monthly Budget Reached" : `📊 Budget Alert: ${threshold}% Spent`,
+            body: isFull
+              ? `You have reached 100% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`
+              : `You have spent ${threshold}% of your monthly budget (₹${Math.round(totalExpense)} of ₹${Math.round(budgetINR)}).`,
+            type: "budget",
+            data: {
+              screen: "Budget",
+              threshold,
+              totalExpense: Math.round(totalExpense),
+              monthlyBudget: Math.round(budgetINR),
+              budgetKey,
+            },
+          });
+          console.log(`[Budget] Sent ${threshold}% budget alert for user ${userId}`);
         }
       }
     }
 
     // 2. Category Budget Check
-    // If the user has categoryBudgets map, see if there is a limit set for this category
-    const categoryBudgetLimit = user.categoryBudgets && typeof user.categoryBudgets.get === "function"
-      ? user.categoryBudgets.get(category)
-      : (user.categoryBudgets ? user.categoryBudgets[category] : null);
+    if (category) {
+      const categoryBudgetLimit = user.categoryBudgets && typeof user.categoryBudgets.get === "function"
+        ? user.categoryBudgets.get(category)
+        : (user.categoryBudgets ? user.categoryBudgets[category] : null);
 
-    if (categoryBudgetLimit && categoryBudgetLimit > 0) {
-      const categoryExpenses = monthlyExpenses.filter(item => item.category === category);
-      const totalCategoryExpense = categoryExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
-      const prevCategoryExpense = totalCategoryExpense - amount;
+      if (categoryBudgetLimit && categoryBudgetLimit > 0) {
+        const categoryExpenses = monthlyExpenses.filter(item => item.category === category);
+        const totalCategoryExpense = categoryExpenses.reduce((sum, item) => sum + (item.amountINR || item.amount || 0), 0);
+        const categoryPercent = (totalCategoryExpense / categoryBudgetLimit) * 100;
+        const categoryBudgetKey = getBudgetKey(categoryBudgetLimit);
 
-      const prevCategoryPercent = (prevCategoryExpense / categoryBudgetLimit) * 100;
-      const newCategoryPercent = (totalCategoryExpense / categoryBudgetLimit) * 100;
+        // Warning when crossing 80%
+        if (categoryPercent >= 80 && (categoryPercent < 100 || categoryBudgetUpdated)) {
+          const alreadySentCat80 = await Notification.findOne({
+            user: userId,
+            type: "budget",
+            "data.category": category,
+            "data.threshold": 80,
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
+          });
 
-      // Warning when crossing 80%
-      if (prevCategoryPercent < 80 && newCategoryPercent >= 80 && newCategoryPercent < 100) {
-        await createNotification({
-          user: userId,
-          title: "Category Budget Warning",
-          body: `You have spent 80% of your budget limit of ${categoryBudgetLimit} for category "${category}".`,
-          type: "budget",
-          data: { category, totalExpense: totalCategoryExpense, budgetLimit: categoryBudgetLimit }
-        });
-      }
+          if (!alreadySentCat80) {
+            await createNotification({
+              user: userId,
+              title: `⚠️ ${category} Budget Warning`,
+              body: `You have spent 80% of your budget for "${category}" (₹${Math.round(totalCategoryExpense)} of ₹${Math.round(categoryBudgetLimit)}).`,
+              type: "budget",
+              data: {
+                screen: "Budget",
+                category,
+                threshold: 80,
+                totalExpense: Math.round(totalCategoryExpense),
+                budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
+              },
+            });
+            console.log(`[Budget] Sent 80% category alert for ${category} to user ${userId}`);
+          }
+        }
 
-      // Exceeded when crossing 100%
-      if (prevCategoryPercent < 100 && newCategoryPercent >= 100) {
-        await createNotification({
-          user: userId,
-          title: "Category Budget Exceeded",
-          body: `Your expenses for category "${category}" have exceeded your budget limit of ${categoryBudgetLimit}.`,
-          type: "budget",
-          data: { category, totalExpense: totalCategoryExpense, budgetLimit: categoryBudgetLimit }
-        });
+        if (categoryPercent >= 100) {
+          const alreadySentCat100 = await Notification.findOne({
+            user: userId,
+            type: "budget",
+            "data.category": category,
+            "data.threshold": 100,
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
+          });
+
+          if (!alreadySentCat100) {
+            await createNotification({
+              user: userId,
+              title: `${category} Budget Reached`,
+              body: `You have reached 100% of your budget for "${category}" (${Math.round(totalCategoryExpense)} of ${Math.round(categoryBudgetLimit)}).`,
+              type: "budget",
+              data: {
+                screen: "Budget",
+                category,
+                threshold: 100,
+                totalExpense: Math.round(totalCategoryExpense),
+                budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
+              },
+            });
+          }
+        }
+
+        // Exceeded when crossing 100%
+        if (categoryPercent > 100) {
+          const alreadySentCatExceeded = await Notification.findOne({
+            user: userId,
+            type: "budget",
+            "data.category": category,
+            "data.threshold": "exceeded",
+            createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+            ...budgetSnapshotMatchQuery(categoryBudgetKey, "budgetLimit", categoryBudgetLimit),
+          });
+
+          if (!alreadySentCatExceeded) {
+            const excess = Math.round(totalCategoryExpense - categoryBudgetLimit);
+            await createNotification({
+              user: userId,
+              title: `🚨 ${category} Budget Exceeded!`,
+              body: `Your expenses for "${category}" have exceeded your budget by ₹${excess}. Total spent: ₹${Math.round(totalCategoryExpense)} / ₹${Math.round(categoryBudgetLimit)}.`,
+              type: "budget",
+              data: {
+                screen: "Budget",
+                category,
+                threshold: "exceeded",
+                excess,
+                totalExpense: Math.round(totalCategoryExpense),
+                budgetLimit: Math.round(categoryBudgetLimit),
+                budgetKey: categoryBudgetKey,
+              },
+            });
+            console.log(`[Budget] Sent category exceeded alert for ${category} to user ${userId}`);
+          }
+        }
       }
     }
   } catch (err) {
@@ -120,18 +256,10 @@ const createTransaction = async (transactionData, userId) => {
     transaction = await transaction.populate("bankAccount");
   }
 
-  // Run push notifications & budget threshold checks asynchronously in background
+  // Run budget threshold checks asynchronously in background
+  // (Noisy self-action "New Expense Added" confirmation is omitted so user only gets actionable alerts)
   setImmediate(async () => {
     try {
-      const typeLabel = transaction.type === "income" ? "Income" : "Expense";
-      await createNotification({
-        user: userId,
-        title: `New ${typeLabel} Added`,
-        body: `You successfully added ${typeLabel.toLowerCase()} of ${transaction.amount} for ${transaction.category}.`,
-        type: transaction.type === "income" ? "income" : "expense",
-        data: { transactionId: transaction._id }
-      });
-
       await checkBudgetLimitsAndNotify(
         userId,
         transaction.category,
@@ -139,7 +267,7 @@ const createTransaction = async (transactionData, userId) => {
         transaction.type === "expense"
       );
     } catch (notificationError) {
-      console.error("Failed to trigger transaction/budget notification:", notificationError);
+      console.error("Failed to trigger budget notification:", notificationError);
     }
   });
 
@@ -284,6 +412,16 @@ const syncTransactions = async (userId, transactions = []) => {
     );
     results.push(...chunkResults);
   }
+
+  // Run budget threshold check asynchronously after sync
+  setImmediate(async () => {
+    try {
+      await checkBudgetLimitsAndNotify(userId, null, 0, true);
+    } catch (notificationError) {
+      console.error("[Sync] Failed to trigger budget notification after sync:", notificationError);
+    }
+  });
+
   return results;
 };
 
@@ -295,4 +433,5 @@ module.exports = {
   updateTransaction,
   deleteTransaction,
   syncTransactions,
+  checkBudgetLimitsAndNotify,
 };

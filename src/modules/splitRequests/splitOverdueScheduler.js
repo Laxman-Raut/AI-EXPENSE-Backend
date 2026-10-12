@@ -1,5 +1,6 @@
 const SplitRequest = require("./model");
 const Transaction = require("../transaction/model");
+const { createNotification } = require("../notification/service");
 
 const getUserId = (userObj) => {
   if (!userObj) return "";
@@ -47,6 +48,18 @@ const processOverdueSplitRequests = async () => {
               transactionDate: now,
               note: `Unpaid split share for "${split.title}". Payer: ${payerName} (${payerEmail})`,
             });
+
+            // Send notification to overdue participant
+            await createNotification({
+              user: pUserId,
+              title: `⚠️ Overdue Split Auto-Recorded`,
+              body: `Your overdue share of ₹${shareAmt} for "${split.title}" has been recorded as an expense.`,
+              type: "reminder",
+              data: {
+                screen: "Friends",
+                splitId: split._id.toString(),
+              },
+            });
           } catch (err) {
             console.error("[Overdue Scheduler] Error creating overdue expense:", err.message);
           }
@@ -62,6 +75,18 @@ const processOverdueSplitRequests = async () => {
               paymentMethod: "UPI",
               transactionDate: now,
               note: `Auto-settled overdue share from ${participantName} (${participantEmail})`,
+            });
+
+            // Send notification to payer
+            await createNotification({
+              user: payerId,
+              title: `💸 Overdue Share Auto-Settled`,
+              body: `${participantName}'s overdue share of ₹${shareAmt} for "${split.title}" has been recorded as income.`,
+              type: "income",
+              data: {
+                screen: "Friends",
+                splitId: split._id.toString(),
+              },
             });
           } catch (err) {
             console.error("[Overdue Scheduler] Error creating overdue reimbursement:", err.message);

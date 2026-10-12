@@ -770,7 +770,9 @@ const sendAdminBroadcastCtrl = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Notification broadcast sent successfully to ${result.recipientCount} user(s).`,
+      message: result.pushResult?.tokenCount === 0
+        ? `Notification saved for ${result.recipientCount} user(s), but no registered device tokens were found.`
+        : `Notification saved for ${result.recipientCount} user(s); FCM accepted ${result.pushResult?.successCount || 0} push(es), ${result.pushResult?.failureCount || 0} failed${result.pushResult?.configured ? "." : " (Firebase push is not configured)."}`,
       data: result
     });
   } catch (error) {

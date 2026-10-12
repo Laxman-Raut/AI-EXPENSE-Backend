@@ -2,6 +2,7 @@ const splitRequestRepository = require("./repository");
 const groupRepository = require("../groups/repository");
 const Transaction = require("../transaction/model");
 const { sendSplitExpenseEmail } = require("../email/emailService");
+const { createNotification } = require("../notification/service");
 const User = require("../auth/model");
 const { createCurrencySnapshot } = require("../currency/service");
 const { normalizeCurrency } = require("../financial/service");
@@ -114,33 +115,57 @@ const createSplitRequest = async (data, userId) => {
 
   const createdSplit = await splitRequestRepository.createSplitRequest(data);
 
-  // Send Email to all participants except payer in background (non-blocking)
+  // Send Email & in-app notification to all participants except payer in background (non-blocking)
   (async () => {
     try {
       const payer = payerDoc || await User.findById(payerIdStr);
-      const emailPromises = createdSplit.participants.map(async (participant) => {
+      const payerName = payer?.fullName || "A group member";
+
+      const notifyPromises = createdSplit.participants.map(async (participant) => {
         const participantId = getUserId(participant.user);
 
-        // Don't send email to payer
+        // Don't send notification to payer
         if (participantId === payerIdStr) return;
 
         const member = await User.findById(participantId);
+        if (!member) return;
 
-        if (!member || !member.email) return;
+        // In-app & FCM push notification
+        try {
+          await createNotification({
+            user: participantId,
+            title: `👥 New Split Bill: ${createdSplit.title}`,
+            body: `${payerName} added "${createdSplit.title}". Your share is ₹${participant.amount}.`,
+            type: "expense",
+            data: {
+              screen: "Friends",
+              splitId: createdSplit._id.toString(),
+            },
+          });
+        } catch (notifErr) {
+          console.warn("[Split] Notification error:", notifErr.message);
+        }
 
-        await sendSplitExpenseEmail({
-          userEmail: member.email,
-          userName: member.fullName,
-          expenseTitle: createdSplit.title,
-          totalAmount: createdSplit.totalAmount,
-          yourShare: participant.amount,
-          paidBy: payer.fullName,
-          date: createdSplit.createdAt,
-        });
+        // Email
+        if (member.email) {
+          try {
+            await sendSplitExpenseEmail({
+              userEmail: member.email,
+              userName: member.fullName,
+              expenseTitle: createdSplit.title,
+              totalAmount: createdSplit.totalAmount,
+              yourShare: participant.amount,
+              paidBy: payerName,
+              date: createdSplit.createdAt,
+            });
+          } catch (emailErr) {
+            console.warn("[Split] Email error:", emailErr.message);
+          }
+        }
       });
-      await Promise.all(emailPromises);
+      await Promise.all(notifyPromises);
     } catch (error) {
-      console.error("[Split] Background email sending failed:", error.message);
+      console.error("[Split] Background notification sending failed:", error.message);
     }
   })();
   // Automatically record Expense transaction for the payer with Dual Currency Snapshot
@@ -265,6 +290,22 @@ const updateSplitRequest = async (splitId, updateData, currentUserId) => {
           });
         } catch (err) {
           console.error("[Split] Error creating payment expense transaction:", err.message);
+        }
+
+        // 3) Send in-app & push notification to payer
+        try {
+          await createNotification({
+            user: oldPayerId,
+            title: `💸 Split Share Received`,
+            body: `${participantName} paid their share of ₹${shareAmount} for "${oldSplit.title}".`,
+            type: "income",
+            data: {
+              screen: "Friends",
+              splitId: splitId.toString(),
+            },
+          });
+        } catch (notifErr) {
+          console.warn("[Split] Notification error:", notifErr.message);
         }
       }
     }
