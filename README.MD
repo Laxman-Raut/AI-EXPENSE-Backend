@@ -163,7 +163,28 @@ To ensure the subscription state is always accurate, the system operates on two 
    RAZORPAY_KEY_SECRET=...
    ```
 
-3. **Start the Application:**
+3. **Firebase Cloud Messaging (FCM) Push Notifications Setup:**
+   Server-side push notifications (budget threshold alerts, admin broadcast campaigns, etc.) require the Firebase Admin SDK private key credentials:
+   - **File Path:** `src/config/firebase-service-account.json`
+   - **How to generate:**
+     1. Open the [Firebase Console](https://console.firebase.google.com/).
+     2. Select your project (e.g. `AI-Expense-Tracker`).
+     3. Click on **Project settings** (⚙️ gear icon) in the left sidebar.
+     4. Navigate to the **Service accounts** tab.
+     5. Click the **Generate new private key** button and confirm by clicking **Generate key** in the dialog.
+     6. A `.json` credentials file will be downloaded to your computer.
+   - **Where to place:**
+     - Rename the downloaded `.json` file to `firebase-service-account.json`.
+     - Place this file inside the backend project's **`src/config/`** directory:
+       ```text
+       AI-EXPENSE-Backend/
+       └── src/
+           └── config/
+               └── firebase-service-account.json
+       ```
+     > *Note:* For production deployments (e.g. Render, Railway, Heroku), you can either place the file or store the entire JSON content as a string inside the `FIREBASE_SERVICE_ACCOUNT` environment variable.
+
+4. **Start the Application:**
    * **Development Mode (with auto-reload):**
      ```bash
      npm run dev
